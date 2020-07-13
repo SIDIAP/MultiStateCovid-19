@@ -1,0 +1,525 @@
+---
+title: 'Modelling gender'
+output:
+  html_document:
+    code_folding: hide
+    highlight: tango
+    theme: united
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+editor_options:
+  chunk_output_type: console
+---
+
+```{r options, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE, comment = FALSE)
+options(scipen=999)
+```
+
+```{r packages, include=FALSE}
+# packages -----
+library(kableExtra)
+library(dplyr)
+library(ggplot2)
+library(rms)
+library(stargazer)
+library(knitr)
+library(stringr)
+library(tidyr)
+
+```
+
+
+```{r data, include=FALSE}
+load("C:/Users/eburn/Documents/OHDSI results/covid multistate/working data.RData")
+dd<<-datadist(r); options(datadist = "dd" )
+
+```
+
+```{r,}
+
+r.healthy.diagnosis<-r.healthy.diagnosis %>% 
+ mutate(age_gr.b= if_else(age<=70, "70 or younger", "Over 70")) %>% 
+ mutate(age_gr.b = factor(age_gr.b, levels = c("70 or younger", "Over 70"))) 
+
+r.healthy.hospitalised<-r.healthy.hospitalised %>% 
+ mutate(age_gr.b= if_else(age<=70, "70 or younger", "Over 70")) %>% 
+ mutate(age_gr.b = factor(age_gr.b, levels = c("70 or younger", "Over 70"))) 
+
+r.healthy.death<-r.healthy.death %>% 
+ mutate(age_gr.b= if_else(age<=70, "70 or younger", "Over 70")) %>% 
+ mutate(age_gr.b = factor(age_gr.b, levels = c("70 or younger", "Over 70"))) 
+
+r.diagnosis.hospitalised<-r.diagnosis.hospitalised %>% 
+ mutate(age_gr.b= if_else(age<=70, "70 or younger", "Over 70")) %>% 
+ mutate(age_gr.b = factor(age_gr.b, levels = c("70 or younger", "Over 70"))) 
+
+r.diagnosis.death<-r.diagnosis.death %>% 
+ mutate(age_gr.b= if_else(age<=70, "70 or younger", "Over 70")) %>% 
+ mutate(age_gr.b = factor(age_gr.b, levels = c("70 or younger", "Over 70"))) 
+
+r.hospitalised.death<-r.hospitalised.death %>% 
+ mutate(age_gr.b= if_else(age<=70, "70 or younger", "Over 70")) %>% 
+ mutate(age_gr.b = factor(age_gr.b, levels = c("70 or younger", "Over 70"))) 
+
+
+
+
+```
+
+```{r functions}
+nice.num<-function(x){
+  prettyNum(x, big.mark=",", nsmall = 0, digits=0,scientific = FALSE)}
+nice.num2<-function(x){
+  prettyNum(x, big.mark=",", nsmall = 2, digits=2,scientific = FALSE)}
+
+# funcion for models
+## age groups - levels of age_gr.b factor in data
+## transition.data - data for transition of intestest
+run.models.gender<-function(age.groups,  # age_gr.b variable levels
+                     transition.data,
+                     transition.name){  # data  for transition of interest
+#models<-list()
+summary.models<-NULL
+
+# overall
+# estimate model 
+#unadjusted
+m.working<-cph(Surv(time, status) ~ gender,
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = transition.data)
+
+# summarise model
+working.summary<-as.data.frame(summary(m.working,gender='Female',antilog=FALSE)) 
+working.summary$var<-row.names(working.summary)
+working.summary$age_gr.b<-"Overall"
+working.summary$model<-"unadjusted"
+working.summary$transition.name<-transition.name
+working.summary<-working.summary %>% 
+  mutate(hr=exp(Effect),
+         hr.low=exp(`Lower 0.95`),
+         hr.high=exp(`Upper 0.95`)) %>% 
+  select(transition.name,var,model, age_gr.b, hr, hr.low, hr.high)
+# output
+summary.models<-rbind(summary.models, 
+                      working.summary)
+
+
+
+
+# with age adjustment based on finding from previous analysis
+if(transition.name %in% 
+   c("From general population to diagnosed with COVID-19",
+     "From diagnosed with COVID-19 to hospitalised with COVID-19")){
+m.working<-cph(Surv(time, status) ~ gender+rcs(age,5),
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = transition.data)
+} else {
+ m.working<-cph(Surv(time, status) ~ gender+ pol(age,2),
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = transition.data) 
+  
+}
+
+# summarise model
+working.summary<-as.data.frame(summary(m.working,gender='Female', antilog=FALSE)) 
+working.summary$var<-row.names(working.summary)
+working.summary$age_gr.b<-"Overall"
+working.summary$model<-"adjusted age"
+working.summary$transition.name<-transition.name
+working.summary<-working.summary %>% 
+  mutate(hr=exp(Effect),
+         hr.low=exp(`Lower 0.95`),
+         hr.high=exp(`Upper 0.95`)) %>% 
+  select(transition.name,var,model, age_gr.b, hr, hr.low, hr.high)
+# output
+summary.models<-rbind(summary.models, 
+                      working.summary)
+
+
+# by age group
+for(i in 1:length(age.groups)){
+# age group
+working.age.group<-age.groups[i]
+# data
+transition.data.working<-transition.data %>% filter(age_gr.b=={{working.age.group}})
+
+
+# estimate unadjusted model
+m.working<-cph(Surv(time, status) ~ gender,
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = transition.data.working)
+# summarise model
+working.summary<-as.data.frame(summary(m.working,gender='Female', antilog=FALSE)) 
+working.summary$var<-row.names(working.summary)
+working.summary$model<-"unadjusted"
+working.summary$age_gr.b<-age.groups[i]
+working.summary$transition.name<-transition.name
+working.summary<-working.summary %>% 
+  mutate(hr=exp(Effect),
+         hr.low=exp(`Lower 0.95`),
+         hr.high=exp(`Upper 0.95`)) %>% 
+  select(transition.name,var,model, age_gr.b, hr, hr.low, hr.high)
+# output
+summary.models<-rbind(summary.models, 
+                      working.summary)
+
+
+# estimate adjusted model
+m.working<-cph(Surv(time, status) ~ gender + age,
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = transition.data.working)
+# summarise model
+working.summary<-as.data.frame(summary(m.working,gender='Female', antilog=FALSE)) 
+working.summary$var<-row.names(working.summary)
+working.summary$model<-"adjusted age"
+working.summary$age_gr.b<-age.groups[i]
+working.summary$transition.name<-transition.name
+working.summary<-working.summary %>% 
+  mutate(hr=exp(Effect),
+         hr.low=exp(`Lower 0.95`),
+         hr.high=exp(`Upper 0.95`)) %>% 
+  select(transition.name,var,model, age_gr.b, hr, hr.low, hr.high)
+# output
+summary.models<-rbind(summary.models, 
+                      working.summary)
+
+
+}
+
+summary.models
+}
+
+
+
+run.models.gender.comorbidities<-function(age.groups,  # age_gr.b variable levels
+                     transition.data,
+                     transition.name){  # data  for transition of interest
+#models<-list()
+summary.models<-NULL
+
+# overall
+# estimate model 
+# with age adjustment based on finding from previous analysis
+if(transition.name %in% 
+   c("From general population to diagnosed with COVID-19",
+     "From diagnosed with COVID-19 to hospitalised with COVID-19")){
+m.working<-cph(Surv(time, status) ~ gender+rcs(age,5)+
+                 charlson+
+                 a_autoimmune_condition+a_chronic_kidney_disease+a_copd+
+                 a_dementia+a_heart_disease+a_hyperlipidemia+
+                 a_hypertension+a_t2_diabetes+a_malignant_neoplasm+a_obesity.5y,
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = transition.data)
+} else {
+ m.working<-cph(Surv(time, status) ~ gender+ pol(age,2)+
+                 charlson+
+                 a_autoimmune_condition+a_chronic_kidney_disease+a_copd+
+                 a_dementia+a_heart_disease+a_hyperlipidemia+
+                 a_hypertension+a_t2_diabetes+a_malignant_neoplasm+a_obesity.5y,
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = transition.data) 
+  
+}
+
+# summarise model
+working.summary<-as.data.frame(summary(m.working,gender='Female', antilog=FALSE)) 
+working.summary$var<-row.names(working.summary)
+working.summary$model<-"adjusted age and comorbidity"
+working.summary$age_gr.b<-"Overall"
+working.summary$transition.name<-transition.name
+working.summary<-working.summary %>% 
+  mutate(hr=exp(Effect),
+         hr.low=exp(`Lower 0.95`),
+         hr.high=exp(`Upper 0.95`)) %>% 
+  select(transition.name,var,model, age_gr.b, hr, hr.low, hr.high)
+# output
+summary.models<-rbind(summary.models, 
+                      working.summary)
+
+
+for(i in 1:length(age.groups)){
+# age group
+working.age.group<-age.groups[i]
+# data
+transition.data.working<-transition.data %>% filter(age_gr.b=={{working.age.group}})
+
+# estimate model
+m.working<-cph(Surv(time, status) ~ gender+age+
+                 charlson+
+                 a_autoimmune_condition+a_chronic_kidney_disease+a_copd+
+                 a_dementia+a_heart_disease+a_hyperlipidemia+
+                 a_hypertension+a_t2_diabetes+a_malignant_neoplasm+a_obesity.5y,
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = transition.data.working)
+# summarise model
+working.summary<-as.data.frame(summary(m.working,gender='Female', antilog=FALSE)) 
+working.summary$var<-row.names(working.summary)
+working.summary$model<-"adjusted age and comorbidity"
+working.summary$age_gr.b<-age.groups[i]
+working.summary$transition.name<-transition.name
+working.summary<-working.summary %>% 
+  mutate(hr=exp(Effect),
+         hr.low=exp(`Lower 0.95`),
+         hr.high=exp(`Upper 0.95`)) %>% 
+  select(transition.name,var, model,age_gr.b, hr, hr.low, hr.high)
+# output
+summary.models<-rbind(summary.models, 
+                      working.summary)
+
+
+}
+
+summary.models
+}
+
+```
+
+
+```{r, cache=TRUE}
+
+
+# overall
+
+age.groups<-c("70 or younger", "Over 70")
+# for each transition 
+summary.m.healthy.diagnosis.gender<-run.models.gender(age.groups=age.groups,
+          transition.data=r.healthy.diagnosis,
+          transition.name="From general population to diagnosed with COVID-19")
+summary.m.healthy.diagnosis.gender.comorbidities<-run.models.gender.comorbidities(age.groups=age.groups,
+          transition.data=r.healthy.diagnosis,
+          transition.name="From general population to diagnosed with COVID-19")
+
+summary.m.healthy.hospitalised.gender<-run.models.gender(age.groups=age.groups,
+          transition.data=r.healthy.hospitalised,
+          transition.name="From general population to hospitalised with COVID-19")
+summary.m.healthy.hospitalised.gender.comorbidities<-run.models.gender.comorbidities(age.groups=age.groups,
+          transition.data=r.healthy.hospitalised,
+          transition.name="From general population to hospitalised with COVID-19")
+
+summary.m.diagnosis.hospitalised.gender<-run.models.gender(age.groups=age.groups,
+          transition.data=r.diagnosis.hospitalised,
+          transition.name="From diagnosed with COVID-19 to hospitalised with COVID-19")
+summary.m.diagnosis.hospitalised.gender.comorbidities<-run.models.gender.comorbidities(age.groups=age.groups,
+          transition.data=r.diagnosis.hospitalised,
+          transition.name="From diagnosed with COVID-19 to hospitalised with COVID-19")
+
+summary.m.diagnosis.death.gender<-run.models.gender(age.groups=age.groups,
+          transition.data=r.diagnosis.death,
+          transition.name="From diagnosed with COVID-19 to death")
+summary.m.diagnosis.death.gender.comorbidities<-run.models.gender.comorbidities(age.groups=age.groups,
+          transition.data=r.diagnosis.death,
+          transition.name="From diagnosed with COVID-19 to death")
+
+summary.m.hospitalised.death.gender<-run.models.gender(age.groups=age.groups, 
+          transition.data=r.hospitalised.death,
+          transition.name="From hospitalised with COVID-19 to death")
+summary.m.hospitalised.death.gender.comorbidities<-run.models.gender.comorbidities(age.groups=age.groups, 
+          transition.data=r.hospitalised.death,
+          transition.name="From hospitalised with COVID-19 to death")
+
+```
+
+# Summary of models
+```{r}
+estimates<-rbind(
+  summary.m.healthy.diagnosis.gender,
+      summary.m.healthy.hospitalised.gender ,
+      summary.m.diagnosis.hospitalised.gender ,
+      summary.m.diagnosis.death.gender ,
+      summary.m.hospitalised.death.gender,
+  
+    summary.m.healthy.diagnosis.gender.comorbidities,
+      summary.m.healthy.hospitalised.gender.comorbidities,
+      summary.m.diagnosis.hospitalised.gender.comorbidities,
+      summary.m.diagnosis.death.gender.comorbidities,
+      summary.m.hospitalised.death.gender.comorbidities )
+
+
+
+# just the estimated effect of gender
+summary.table <-estimates %>% 
+  filter(var=="gender - Male:Female") %>% # just gender var
+  mutate(est=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>% 
+    mutate(group=paste0(age_gr.b, "- ", model)) %>% 
+  select(transition.name, group, est) %>% 
+  arrange(transition.name, group)
+
+
+summary.table<-summary.table %>% 
+  pivot_wider(names_from = group,
+              values_from=est) %>% 
+  select("transition.name",
+         "Overall- unadjusted", "Overall- adjusted age", "Overall- adjusted age and comorbidity",
+         "70 or younger- unadjusted", "70 or younger- adjusted age", "70 or younger- adjusted age and comorbidity",
+         "Over 70- unadjusted", "Over 70- adjusted age", "Over 70- adjusted age and comorbidity")
+
+
+
+kable(summary.table,
+      col.names = c("Transition",
+                    "unadjusted", "adjusted age",  "adjusted age and comorbidity",
+                    "unadjusted", "adjusted age",  "adjusted age and comorbidity",
+                    "unadjusted", "adjusted age",  "adjusted age and comorbidity"
+                    )) %>% 
+         add_header_above( c("",
+    "Overall" = 3,
+    "Age: 70 or younger" = 3,
+    "Over 70" = 3)) %>% 
+    kable_styling(bootstrap_options = c("striped", "bordered"))  
+
+```
+
+
+
+```{r}
+
+plot.data<-estimates %>% 
+  mutate(transition.name=
+           ifelse(transition.name==
+                    "From general population to diagnosed with COVID-19",
+                    "From general population to\ndiagnosed with COVID-19",
+              ifelse(transition.name==     
+                  "From general population to hospitalised with COVID-19",
+                   "From general population to\nhospitalised with COVID-19",
+               ifelse(transition.name==
+                         "From diagnosed with COVID-19 to hospitalised with COVID-19",
+                          "From diagnosed with COVID-19\nto hospitalised with COVID-19",
+               ifelse(transition.name== 
+                         "From diagnosed with COVID-19 to death",
+                          "From diagnosed with COVID-19\nto death",
+               ifelse(transition.name== 
+                         "From hospitalised with COVID-19 to death",
+                        "From hospitalised with COVID-19\nto death",
+                        NA)))))) %>% 
+     mutate(transition.name=factor(transition.name,
+                      levels=c("From general population to\ndiagnosed with COVID-19",
+                               "From general population to\nhospitalised with COVID-19",
+                               "From diagnosed with COVID-19\nto hospitalised with COVID-19",
+                               "From diagnosed with COVID-19\nto death",
+                               "From hospitalised with COVID-19\nto death"
+                               ))) 
+
+
+plot.data<-plot.data %>% 
+  filter(var=="gender - Male:Female") %>%  
+  mutate(age_gr.b=factor(age_gr.b,
+                        levels=c("Overall",
+                          "70 or younger",
+                                 "Over 70"))) %>% 
+   # filter(str_detect(model, "unadjusted", negate = TRUE)) %>%
+    mutate(model=ifelse(model=="unadjusted", "unadjusted",
+                 ifelse(model=="adjusted age", "Adjusted for age",
+                 ifelse(model=="adjusted age and comorbidity", "Adjusted for age and comorbidities",  NA  )))) %>% 
+  mutate(model=factor(model,
+                        levels=c("unadjusted",
+                                 "Adjusted for age",
+                                 "Adjusted for age and comorbidities"))) %>% 
+  mutate(age_gr.b_model=paste(age_gr.b, model)) %>% 
+  mutate(age_gr.b_model=factor(age_gr.b_model,
+                        levels=c("Overall Adjusted for age",
+                                 "Overall Adjusted for age and comorbidities",
+                                 "Over 70 Adjusted for age",
+                                 "Over 70 Adjusted for age and comorbidities",
+                                 "70 or younger Adjusted for age",
+                                 "70 or younger Adjusted for age and comorbidities")))
+
+ 
+#overall
+order<-c("unadjusted","Adjusted for age",
+          "Adjusted for age and comorbidities")
+plot.data$model<-factor(plot.data$model,
+                      levels=rev(order))
+
+#overall, adjusted
+gg.hrs.adjusted<- 
+plot.data %>% 
+  filter(age_gr.b=="Overall") %>% 
+  filter(str_detect(model, "unadjusted", negate = TRUE)) %>%
+  ggplot(aes(x=hr,
+             y=model,
+             xmin=hr.low,
+             xmax=hr.high,
+             colour=model,
+             linetype=model))+
+   xlim(c(0,NA))+
+  facet_grid(transition.name~., drop=TRUE,scales = "free", switch="y")+
+  geom_point(size=3.25)+
+  geom_errorbar(width=0, size=1)+
+  scale_colour_manual(values=c("#046C9A", "#D69C4E"))+
+  geom_vline(xintercept = 1, colour = "#000000", 
+             linetype=2) +
+  theme_bw()+
+  theme(panel.spacing = unit(0, "lines"),
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        legend.text =element_text(size=14),
+        axis.title.y=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        axis.text=element_text(size=14),
+        axis.title=element_text(size=16,face="bold"),
+        strip.text = element_text(size=14, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7"),
+        strip.text.y.left = element_text(angle = 0)) +
+  xlab("\nHazard ratio")+ 
+  labs(title = "Estimated hazard ratios: male relative to female")+ 
+  guides(colour = guide_legend(reverse=TRUE),
+         linetype= guide_legend(reverse=TRUE))
+
+
+  ggsave("gg.hrs.adjusted.png",gg.hrs.adjusted,
+        dpi=300,
+         width = 12.5, height = 8)
+
+include_graphics("gg.hrs.adjusted.png")
+
+
+# all
+gg.hrs.all<- plot.data %>% 
+  ggplot(aes(x=hr,
+             y=paste(age_gr.b,model),
+             xmin=hr.low,
+             xmax=hr.high,
+             shape=age_gr.b,
+             colour=model,
+             linetype=model))+
+   xlim(c(0,NA))+
+  facet_grid(transition.name~., drop=TRUE,scales = "free", switch="y")+
+  geom_point(size=3.25)+
+  geom_errorbar(width=0, size=1)+
+  # scale_y_discrete(limits = rev(levels(plot.data$adj)))+
+  scale_colour_manual(values=c( "#046C9A", "#D69C4E","#5BBCD6"))+
+  geom_vline(xintercept = 1, colour = "#000000", 
+             linetype=2) +
+  theme_bw()+
+  theme(panel.spacing = unit(0, "lines"),
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        legend.text =element_text(size=14),
+        axis.title.y=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        axis.text=element_text(size=14),
+        axis.title=element_text(size=16,face="bold"),
+        strip.text = element_text(size=14, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7"),
+        strip.text.y.left = element_text(angle = 0)) +
+  xlab("\nHazard ratio")+ 
+  labs(title = "Estimated hazard ratios: male relative to female")+ 
+  guides(colour = guide_legend(reverse=TRUE),
+         linetype= guide_legend(reverse=TRUE))
+
+
+  ggsave("gg.hrs.all.png",gg.hrs.all,
+        dpi=300,
+         width = 12.5, height = 8)
+
+include_graphics("gg.hrs.all.png")
+
+
+```

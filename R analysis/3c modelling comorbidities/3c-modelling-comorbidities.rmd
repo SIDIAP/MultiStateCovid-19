@@ -1,0 +1,625 @@
+---
+title: 'Modelling comorbidities'
+output:
+  html_document:
+    code_folding: hide
+    highlight: tango
+    theme: united
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+highlight: tango
+theme: united
+toc: yes
+toc_depth: 4
+toc_float: yes
+editor_options:
+  chunk_output_type: console
+---
+  
+```{r options, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE, comment = FALSE)
+options(scipen=999)
+```
+
+```{r packages, include=FALSE}
+# packages -----
+library(kableExtra)
+library(dplyr)
+library(ggplot2)
+library(rms)
+library(stargazer)
+library(knitr)
+library(stringr)
+library(tidyr)
+
+```
+
+
+```{r data, include=FALSE}
+load("C:/Users/eburn/Documents/OHDSI results/covid multistate/working data.RData")
+dd<<-datadist(r); options(datadist = "dd" )
+```
+
+```{r}
+r.healthy.diagnosis<-r.healthy.diagnosis %>% 
+ mutate(age_gr.b= if_else(age<=70, "70 or younger", "Over 70")) %>% 
+ mutate(age_gr.b = factor(age_gr.b, levels = c("70 or younger", "Over 70"))) 
+
+r.healthy.hospitalised<-r.healthy.hospitalised %>% 
+ mutate(age_gr.b= if_else(age<=70, "70 or younger", "Over 70")) %>% 
+ mutate(age_gr.b = factor(age_gr.b, levels = c("70 or younger", "Over 70"))) 
+
+r.healthy.death<-r.healthy.death %>% 
+ mutate(age_gr.b= if_else(age<=70, "70 or younger", "Over 70")) %>% 
+ mutate(age_gr.b = factor(age_gr.b, levels = c("70 or younger", "Over 70"))) 
+
+r.diagnosis.hospitalised<-r.diagnosis.hospitalised %>% 
+ mutate(age_gr.b= if_else(age<=70, "70 or younger", "Over 70")) %>% 
+ mutate(age_gr.b = factor(age_gr.b, levels = c("70 or younger", "Over 70"))) 
+
+r.diagnosis.death<-r.diagnosis.death %>% 
+ mutate(age_gr.b= if_else(age<=70, "70 or younger", "Over 70")) %>% 
+ mutate(age_gr.b = factor(age_gr.b, levels = c("70 or younger", "Over 70"))) 
+
+r.hospitalised.death<-r.hospitalised.death %>% 
+ mutate(age_gr.b= if_else(age<=70, "70 or younger", "Over 70")) %>% 
+ mutate(age_gr.b = factor(age_gr.b, levels = c("70 or younger", "Over 70"))) 
+
+
+
+
+```
+
+
+```{r functions}
+nice.num<-function(x){
+  prettyNum(x, big.mark=",", nsmall = 0, digits=0,scientific = FALSE)}
+nice.num2<-function(x){
+  prettyNum(x, big.mark=",", nsmall = 2, digits=2,scientific = FALSE)}
+
+
+# funcion for models
+## comorbidity - var of interest
+## transition.data - data for transition of intestest
+
+
+get.models<-function(comorbidities,  
+                      transition.data, 
+                     transition.name){  
+
+#models<-list()
+summary.models<-NULL
+  
+for(i in 1:length(comorbidities)){
+  message(paste0("working on comorbidity ", i, "( ",comorbidities[i], ")"))
+working.comorbidity<-comorbidities[i] 
+
+# overall models -----
+# 1 unadjusted
+m.working<-cph(as.formula(paste("Surv(time, status)~ ", 
+                 paste(comorbidities[i]))),
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = transition.data)
+working.summary<-as.data.frame(summary(m.working, antilog=FALSE)) 
+working.summary$var<-row.names(working.summary)
+working.summary$gender<-"Overall"
+working.summary$age_gr.b<-"Overall"
+working.summary$model<-"unadjusted"
+working.summary$transition.name<-transition.name
+working.summary<-working.summary %>% 
+  mutate(hr=exp(Effect),
+         hr.low=exp(`Lower 0.95`),
+         hr.high=exp(`Upper 0.95`)) %>% 
+  select(transition.name,var,model,gender, age_gr.b, hr, hr.low, hr.high)
+# output
+summary.models<-rbind(summary.models, 
+                      working.summary)
+
+# 2 adjusted for age and gender
+# age based on previous analysis
+
+if(transition.name %in% 
+   c("From general population to diagnosed with COVID-19",
+     "From diagnosed with COVID-19 to hospitalised with COVID-19")){
+m.working<-cph(as.formula(paste("Surv(time, status)~ ", 
+                 paste0(comorbidities[i], 
+                 "+gender+rcs(age,5)" ))),
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = transition.data)  
+
+} else {
+  m.working<-cph(as.formula(paste("Surv(time, status)~ ", 
+                 paste0(comorbidities[i], 
+                 "+gender+pol(age,2)" ))),
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = transition.data)  
+  
+}
+working.summary<-as.data.frame(summary(m.working, antilog=FALSE)) 
+working.summary$var<-row.names(working.summary)
+working.summary$gender<-"Overall"
+working.summary$age_gr.b<-"Overall"
+working.summary$model<-"Adjusted for age and gender"
+working.summary$transition.name<-transition.name
+working.summary<-working.summary %>% 
+  mutate(hr=exp(Effect),
+         hr.low=exp(`Lower 0.95`),
+         hr.high=exp(`Upper 0.95`)) %>% 
+  select(transition.name,var,model,gender, age_gr.b, hr, hr.low, hr.high)
+# output
+summary.models<-rbind(summary.models, 
+                      working.summary)
+
+
+# stratified by age group and gender -----
+# for dementia, only run over 70 models 
+
+# unadjusted 
+# and adjusted for age (linear with strata)
+
+if(working.comorbidity!="a_dementia"){ 
+  # 70 or younger, male,  unadjusted
+m.working<-
+  cph(as.formula(paste("Surv(time, status)~ ", 
+                 paste(comorbidities[i]))),
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = transition.data %>% filter(age_gr.b=="70 or younger") %>%  filter(gender=="Male"))
+working.summary<-as.data.frame(summary(m.working, antilog=FALSE)) 
+working.summary$var<-row.names(working.summary)
+working.summary$gender<-"Male"
+working.summary$age_gr.b<-"70 or younger"
+working.summary$model<-"unadjusted"
+working.summary$transition.name<-transition.name
+working.summary<-working.summary %>% 
+  mutate(hr=exp(Effect),
+         hr.low=exp(`Lower 0.95`),
+         hr.high=exp(`Upper 0.95`)) %>% 
+  select(transition.name,var,model,gender, age_gr.b, hr, hr.low, hr.high)
+# output
+summary.models<-rbind(summary.models, 
+                      working.summary)
+
+  # 70 or younger, male,  adjusted for age
+m.working<-
+  cph(as.formula(paste("Surv(time, status)~ ", 
+                 paste(comorbidities[i], "+ age"))),
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = transition.data %>% filter(age_gr.b=="70 or younger") %>%  filter(gender=="Male"))
+working.summary<-as.data.frame(summary(m.working, antilog=FALSE)) 
+working.summary$var<-row.names(working.summary)
+working.summary$gender<-"Male"
+working.summary$age_gr.b<-"70 or younger"
+working.summary$model<-"Adjusted for age"
+working.summary$transition.name<-transition.name
+working.summary<-working.summary %>% 
+  mutate(hr=exp(Effect),
+         hr.low=exp(`Lower 0.95`),
+         hr.high=exp(`Upper 0.95`)) %>% 
+  select(transition.name,var,model,gender, age_gr.b, hr, hr.low, hr.high)
+# output
+summary.models<-rbind(summary.models, 
+                      working.summary)
+  
+  # 70 or younger, female,  unadjusted
+m.working<-
+  cph(as.formula(paste("Surv(time, status)~ ", 
+                 paste(comorbidities[i]))),
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = transition.data %>% filter(age_gr.b=="70 or younger") %>%  filter(gender=="Female"))
+working.summary<-as.data.frame(summary(m.working, antilog=FALSE)) 
+working.summary$var<-row.names(working.summary)
+working.summary$gender<-"Female"
+working.summary$age_gr.b<-"70 or younger"
+working.summary$model<-"unadjusted"
+working.summary$transition.name<-transition.name
+working.summary<-working.summary %>% 
+  mutate(hr=exp(Effect),
+         hr.low=exp(`Lower 0.95`),
+         hr.high=exp(`Upper 0.95`)) %>% 
+  select(transition.name,var,model,gender, age_gr.b, hr, hr.low, hr.high)
+# output
+summary.models<-rbind(summary.models, 
+                      working.summary)
+
+  # 70 or younger, female,  adjusted for age
+m.working<-
+  cph(as.formula(paste("Surv(time, status)~ ", 
+                 paste(comorbidities[i], "+ age"))),
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = transition.data %>% filter(age_gr.b=="70 or younger") %>%  filter(gender=="Female"))
+working.summary<-as.data.frame(summary(m.working, antilog=FALSE)) 
+working.summary$var<-row.names(working.summary)
+working.summary$gender<-"Female"
+working.summary$age_gr.b<-"70 or younger"
+working.summary$model<-"Adjusted for age"
+working.summary$transition.name<-transition.name
+working.summary<-working.summary %>% 
+  mutate(hr=exp(Effect),
+         hr.low=exp(`Lower 0.95`),
+         hr.high=exp(`Upper 0.95`)) %>% 
+  select(transition.name,var,model,gender, age_gr.b, hr, hr.low, hr.high)
+# output
+summary.models<-rbind(summary.models, 
+                      working.summary)
+    
+}
+
+
+  # Over 70, male,  unadjusted
+m.working<-
+  cph(as.formula(paste("Surv(time, status)~ ", 
+                 paste(comorbidities[i]))),
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = transition.data %>% filter(age_gr.b=="Over 70") %>%  filter(gender=="Male"))
+working.summary<-as.data.frame(summary(m.working, antilog=FALSE)) 
+working.summary$var<-row.names(working.summary)
+working.summary$gender<-"Male"
+working.summary$age_gr.b<-"Over 70"
+working.summary$model<-"unadjusted"
+working.summary$transition.name<-transition.name
+working.summary<-working.summary %>% 
+  mutate(hr=exp(Effect),
+         hr.low=exp(`Lower 0.95`),
+         hr.high=exp(`Upper 0.95`)) %>% 
+  select(transition.name,var,model,gender, age_gr.b, hr, hr.low, hr.high)
+# output
+summary.models<-rbind(summary.models, 
+                      working.summary)
+
+  # Over 70, male,  adjusted for age
+m.working<-
+  cph(as.formula(paste("Surv(time, status)~ ", 
+                 paste(comorbidities[i], "+ age"))),
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = transition.data %>% filter(age_gr.b=="Over 70") %>%  filter(gender=="Male"))
+working.summary<-as.data.frame(summary(m.working, antilog=FALSE)) 
+working.summary$var<-row.names(working.summary)
+working.summary$gender<-"Male"
+working.summary$age_gr.b<-"Over 70"
+working.summary$model<-"Adjusted for age"
+working.summary$transition.name<-transition.name
+working.summary<-working.summary %>% 
+  mutate(hr=exp(Effect),
+         hr.low=exp(`Lower 0.95`),
+         hr.high=exp(`Upper 0.95`)) %>% 
+  select(transition.name,var,model,gender, age_gr.b, hr, hr.low, hr.high)
+# output
+summary.models<-rbind(summary.models, 
+                      working.summary)
+  
+  # Over 70, female,  unadjusted
+m.working<-
+  cph(as.formula(paste("Surv(time, status)~ ", 
+                 paste(comorbidities[i]))),
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = transition.data %>% filter(age_gr.b=="Over 70") %>%  filter(gender=="Female"))
+working.summary<-as.data.frame(summary(m.working, antilog=FALSE)) 
+working.summary$var<-row.names(working.summary)
+working.summary$gender<-"Female"
+working.summary$age_gr.b<-"Over 70"
+working.summary$model<-"unadjusted"
+working.summary$transition.name<-transition.name
+working.summary<-working.summary %>% 
+  mutate(hr=exp(Effect),
+         hr.low=exp(`Lower 0.95`),
+         hr.high=exp(`Upper 0.95`)) %>% 
+  select(transition.name,var,model,gender, age_gr.b, hr, hr.low, hr.high)
+# output
+summary.models<-rbind(summary.models, 
+                      working.summary)
+
+  # Over 70, female,  adjusted for age
+m.working<-
+  cph(as.formula(paste("Surv(time, status)~ ", 
+                 paste(comorbidities[i], "+ age"))),
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = transition.data %>% filter(age_gr.b=="Over 70") %>%  filter(gender=="Female"))
+working.summary<-as.data.frame(summary(m.working, antilog=FALSE)) 
+working.summary$var<-row.names(working.summary)
+working.summary$gender<-"Female"
+working.summary$age_gr.b<-"Over 70"
+working.summary$model<-"Adjusted for age"
+working.summary$transition.name<-transition.name
+working.summary<-working.summary %>% 
+  mutate(hr=exp(Effect),
+         hr.low=exp(`Lower 0.95`),
+         hr.high=exp(`Upper 0.95`)) %>% 
+  select(transition.name,var,model,gender, age_gr.b, hr, hr.low, hr.high)
+# output
+summary.models<-rbind(summary.models, 
+                      working.summary)
+
+
+}
+  summary.models
+}
+
+```
+
+
+```{r, cache=TRUE}
+comorbidities<-c("charlson",
+                 "a_autoimmune_condition",
+                 "a_chronic_kidney_disease",
+                 "a_copd",
+                 "a_dementia",
+                 "a_heart_disease",
+                 "a_hyperlipidemia",
+                 "a_hypertension",
+                 "a_malignant_neoplasm",
+                 "a_obesity.5y",
+                 "a_t2_diabetes")
+
+
+summary.m.healthy.diagnosis<-get.models(comorbidities=comorbidities,
+          transition.data=r.healthy.diagnosis,
+          transition.name="From general population to diagnosed with COVID-19")
+summary.m.healthy.hospitalised<-get.models(comorbidities=comorbidities,
+          transition.data=r.healthy.hospitalised,
+          transition.name="From general population to hospitalised with COVID-19")
+summary.m.diagnosis.hospitalised<-get.models(comorbidities=comorbidities,
+                                 transition.data=r.diagnosis.hospitalised,
+          transition.name="From diagnosed with COVID-19 to hospitalised with COVID-19")
+summary.m.diagnosis.death<-get.models(comorbidities=comorbidities,
+          transition.data=r.diagnosis.death,
+          transition.name="From diagnosed with COVID-19 to death")
+summary.m.hospitalised.death<-get.models(comorbidities=comorbidities, 
+          transition.data=r.hospitalised.death,
+          transition.name="From hospitalised with COVID-19 to death")
+```
+
+
+# Summary of models
+
+```{r}
+
+
+estimates<-rbind(
+summary.m.healthy.diagnosis,
+summary.m.healthy.hospitalised,
+summary.m.diagnosis.hospitalised,
+summary.m.diagnosis.death,
+summary.m.hospitalised.death)
+# just the estimated effect of comorbidities
+estimates<-estimates%>% 
+  filter(str_detect(var, paste(comorbidities, collapse="|")))
+
+estimates<-estimates %>% 
+  mutate(var=str_replace(var, "a_", "")) %>%
+  mutate(var=str_replace(var, "_", " "))  %>%
+  mutate(var=str_replace(var, "_", " ")) %>%
+  mutate(var=str_replace(var, "t2", "Type 2")) %>%
+  mutate(var=ifelse(var=="obesity.5y", "Obesity", var)) %>% 
+  mutate(var=str_to_sentence(var)) %>%
+  mutate(var=ifelse(var=="Copd", "COPD", var))
+
+
+
+summary.table<-estimates %>% 
+  mutate(est=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>% 
+  mutate(group=paste0(model, "- ", gender, "- ",age_gr.b)) %>% 
+  select(transition.name, var,group, est)
+
+
+summary.table<-summary.table %>% 
+  pivot_wider(
+    names_from = group,
+              values_from=est) %>% 
+  select("transition.name", "var",
+         "unadjusted- Overall- Overall" , "Adjusted for age and gender- Overall- Overall",
+         "unadjusted- Male- 70 or younger", "Adjusted for age- Male- 70 or younger" ,
+         "unadjusted- Female- 70 or younger", "Adjusted for age- Female- 70 or younger" ,
+         "unadjusted- Male- Over 70", "Adjusted for age- Male- Over 70" ,
+         "unadjusted- Female- Over 70", "Adjusted for age- Female- Over 70" )
+
+
+
+kable(summary.table,
+      col.names = c("Transition", "Variable", 
+                    "Unadjusted", "Adjusted for age and gender",
+                    "Unadjusted", "Adjusted for age",
+                    "Unadjusted", "Adjusted for age",
+                    "Unadjusted", "Adjusted for age",
+                    "Unadjusted", "Adjusted for age"
+                    )) %>% 
+         add_header_above( c("", "",
+    "Overall" = 2,
+    "Male- 70 or younger" = 2,
+    "Female- 70 or younger" = 2,
+    "Male- Over 70" = 2,
+    "Female- Over 70" = 2))  %>% 
+    kable_styling(bootstrap_options = c("striped", "bordered")) 
+
+
+```
+
+
+
+```{r}
+
+plot.data<-estimates %>% 
+  mutate(transition.name=
+           ifelse(transition.name==
+                    "From general population to diagnosed with COVID-19",
+                    "From general populaton\nto diagnosed\nwith COVID-19",
+              ifelse(transition.name==     
+                  "From general population to hospitalised with COVID-19",
+                               "From general population\nto hospitalised\nwith COVID-19",
+               ifelse(transition.name==
+                         "From diagnosed with COVID-19 to hospitalised with COVID-19",
+                               "From diagnosed with\nCOVID-19 to hospitalised\nwith COVID-19",
+               ifelse(transition.name== 
+                         "From diagnosed with COVID-19 to death",
+                               "From diagnosed with\nCOVID-19 to\ndeath",
+               ifelse(transition.name== 
+                         "From hospitalised with COVID-19 to death",
+                               "From hospitalised\nwith COVID-19\nto death",
+                        NA)))))) %>% 
+     mutate(transition.name=factor(transition.name,
+                      levels=c("From general populaton\nto diagnosed\nwith COVID-19",
+                               "From general population\nto hospitalised\nwith COVID-19",
+                               "From diagnosed with\nCOVID-19 to hospitalised\nwith COVID-19",
+                               "From diagnosed with\nCOVID-19 to\ndeath",
+                               "From hospitalised\nwith COVID-19\nto death"
+                               ))) 
+
+
+
+plot.data<-plot.data%>%  
+  mutate(model=factor(model,
+                        levels=c("unadjusted",
+                                 "Adjusted for age",
+                                 "Adjusted for age and gender")))
+
+
+order<-c("Autoimmune condition",
+"Chronic kidney disease",
+"COPD",
+"Dementia",
+"Heart disease",
+"Hyperlipidemia"  ,
+"Hypertension" ,
+"Malignant neoplasm",
+"Obesity","Type 2 diabetes" ,
+"Charlson - 1:0" ,  "Charlson - 2:0" , "Charlson - 3+:0")
+
+
+plot.data$charlson<-ifelse(str_detect(plot.data$var, "Charlson"), "yes", "no")
+
+plot.data$var<-factor(plot.data$var, 
+                      levels=rev(order))
+
+#overall
+gg.hrs.adjusted.overall<-plot.data %>% 
+  filter(str_detect(model, "unadjusted", negate = TRUE)) %>% 
+  filter(age_gr.b=="Overall") %>% 
+  ggplot(aes(x=hr,
+             y=var,
+             xmin=hr.low,
+             xmax=hr.high,
+             colour=var))+
+   xlim(c(0,NA))+
+  facet_grid(charlson~transition.name, drop=TRUE,
+             scales = "free_y", 
+             space = "free_y")+
+  geom_point(size=2,position=position_dodge(width=1))+
+  geom_errorbar(width=0, size=1,position=position_dodge(width=1))+
+#  scale_colour_manual(values=c("#FF0000","#3B9AB2"))+
+  geom_vline(xintercept = 1, colour = "#000000", 
+             linetype=2) +
+  theme_bw()+
+  theme(panel.spacing = unit(0, "lines"),
+        legend.position = "none",
+        legend.title = element_blank(),
+        legend.text =element_text(size=12),
+        axis.title.y=element_blank(),
+        axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"),
+        strip.text.x  = element_text(size=12, face="bold"),
+        strip.background.x = element_rect( fill="#f7f7f7"),
+  strip.background.y = element_blank(),
+  strip.text.y = element_blank()) +
+  xlab("\nHazard ratio")+ 
+  labs(title = "Estimated hazard ratios for comorbidities: adjusted for age and gender")
+
+  ggsave("gg.hrs.adjusted.overall.png",gg.hrs.adjusted.overall,
+        dpi=300,
+         width = 15, height = 9)
+
+include_graphics("gg.hrs.adjusted.overall.png")
+
+
+# all adjusted models
+gg.hrs.adjusted.all<-plot.data %>% 
+  mutate(gender=ifelse(gender=="Overall", "", gender)) %>% 
+  filter(str_detect(model, "unadjusted", negate = TRUE)) %>% 
+  ggplot(aes(x=hr,
+             y=var,
+             xmin=hr.low,
+             xmax=hr.high,
+             colour=var,
+              shape=paste(age_gr.b, gender),
+             linetype=paste(age_gr.b, gender)))+
+   xlim(c(0,NA))+
+  facet_grid(charlson~transition.name, drop=TRUE,
+             scales = "free", 
+             space = "free_y")+
+  geom_point(size=2,position=position_dodge(width=1))+
+  geom_errorbar(width=0, size=1,position=position_dodge(width=1))+
+#  scale_colour_manual(values=c("#FF0000","#3B9AB2"))+
+  geom_vline(xintercept = 1, colour = "#000000", 
+             linetype=2) +
+  theme_bw()+
+  theme(panel.spacing = unit(0, "lines"),
+      #  legend.position = "none",
+        legend.title = element_blank(),
+        legend.text =element_text(size=12),
+        axis.title.y=element_blank(),
+        axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"),
+        strip.text.x  = element_text(size=12, face="bold"),
+        strip.background.x = element_rect( fill="#f7f7f7"),
+  strip.background.y = element_blank(),
+  strip.text.y = element_blank()) +
+  scale_colour_hue(guide = "none")+
+  xlab("\nHazard ratio")+ 
+  labs(title = "Estimated hazard ratios for comorbidities: adjusted for age and gender")+ 
+  guides(shape = guide_legend(reverse=TRUE),
+         linetype= guide_legend(reverse=TRUE))
+
+  ggsave("gg.hrs.adjusted.all.png",gg.hrs.adjusted.all,
+        dpi=300,
+         width = 15, height = 9)
+
+include_graphics("gg.hrs.adjusted.all.png")
+
+# unadjusted models
+gg.hrs.unadjusted.all<-plot.data %>% 
+    mutate(gender=ifelse(gender=="Overall", "", gender)) %>% 
+  filter(str_detect(model, "unadjusted")) %>% 
+  ggplot(aes(x=hr,
+             y=var,
+             xmin=hr.low,
+             xmax=hr.high,
+             colour=var,
+              shape=paste(age_gr.b, gender),
+             linetype=paste(age_gr.b, gender)))+
+   xlim(c(0,NA))+
+  facet_grid(charlson~transition.name, drop=TRUE,
+             scales = "free", 
+             space = "free_y")+
+  geom_point(size=2,position=position_dodge(width=1))+
+  geom_errorbar(width=0, size=1,position=position_dodge(width=1))+
+  geom_vline(xintercept = 1, colour = "#000000", 
+             linetype=2) +
+  theme_bw()+
+  theme(panel.spacing = unit(0, "lines"),
+        legend.title = element_blank(),
+        legend.text =element_text(size=12),
+        axis.title.y=element_blank(),
+        axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"),
+        strip.text.x  = element_text(size=12, face="bold"),
+        strip.background.x = element_rect( fill="#f7f7f7"),
+  strip.background.y = element_blank(),
+  strip.text.y = element_blank()) +
+  scale_colour_hue(guide = "none")+
+  xlab("\nHazard ratio")+ 
+  labs(title = "Estimated hazard ratios for comorbidities: unadjusted")+ 
+  guides(shape = guide_legend(reverse=TRUE),
+         linetype= guide_legend(reverse=TRUE))
+
+
+
+  ggsave("gg.hrs.unadjusted.all.png",gg.hrs.unadjusted.all,
+        dpi=300,
+         width = 15, height = 9)
+
+include_graphics("gg.hrs.unadjusted.all.png")
+```
+
+

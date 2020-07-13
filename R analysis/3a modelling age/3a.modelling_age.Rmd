@@ -1,0 +1,3612 @@
+---
+title: 'Modelling age'
+output:
+  html_document:
+    code_folding: hide
+    highlight: tango
+    theme: united
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+editor_options:
+  chunk_output_type: console
+---
+
+```{r options, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE, comment = FALSE, 
+                      cache.lazy = FALSE)
+options(scipen=999)
+options(knitr.kable.NA = '')
+```
+
+```{r packages, include=FALSE}
+# packages -----
+library(kableExtra)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(rms)
+library(stargazer)
+library(ggstance)
+library(stringr)
+library(knitr)
+```
+
+```{r data, include=FALSE}
+load("C:/Users/eburn/Documents/OHDSI results/covid multistate/working data.RData")
+```
+
+```{r functions}
+## Functions
+
+# For printing numbers
+nice.num<-function(x){
+  prettyNum(x, big.mark=",", nsmall = 0, digits=0,scientific = FALSE)}
+nice.num2<-function(x){
+  prettyNum(x, big.mark=",", nsmall = 2, digits=2,scientific = FALSE)}
+
+# Models
+get.models<-function(r.data,name){
+# will add models to list-----
+models<-list()
+
+
+## overall models ------
+#data
+working.data<-r.data 
+dd<<-datadist(working.data); options(datadist = "dd" )
+# age only  
+models[[paste0("m.",name, ".overall.linear", ".age.only")]]<-cph(Surv(time, status) ~ age,
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)
+models[[paste0("m.",name, ".overall.quadratic", ".age.only")]]<-cph(Surv(time, status) ~ pol(age,2),
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)
+models[[paste0("m.",name, ".overall.rcs3", ".age.only")]]<-cph(Surv(time, status) ~ rcs(age,3),
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)
+models[[paste0("m.",name, ".overall.rcs4", ".age.only")]]<-cph(Surv(time, status) ~ rcs(age,4),
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)
+models[[paste0("m.",name, ".overall.rcs5", ".age.only")]]<-cph(Surv(time, status) ~ rcs(age,5),
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)
+models[[paste0("m.",name, ".overall.linear", ".age.comorbidities")]]<-cph(Surv(time, status) ~ age+                      charlson+
+                 a_autoimmune_condition+a_chronic_kidney_disease+a_copd+
+                 a_dementia+a_heart_disease+a_hyperlipidemia+
+                 a_hypertension+a_t2_diabetes+a_malignant_neoplasm+a_obesity.5y,
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)
+models[[paste0("m.",name, ".overall.quadratic", ".age.comorbidities")]]<-cph(Surv(time, status) ~ pol(age,2)+
+   charlson+
+                 a_autoimmune_condition+a_chronic_kidney_disease+a_copd+
+                 a_dementia+a_heart_disease+a_hyperlipidemia+
+                 a_hypertension+a_t2_diabetes+a_malignant_neoplasm+a_obesity.5y,
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)
+models[[paste0("m.",name, ".overall.rcs3", ".age.comorbidities")]]<-cph(Surv(time, status) ~ rcs(age,3)+
+              charlson+
+                 a_autoimmune_condition+a_chronic_kidney_disease+a_copd+
+                 a_dementia+a_heart_disease+a_hyperlipidemia+
+                 a_hypertension+a_t2_diabetes+a_malignant_neoplasm+a_obesity.5y,
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)
+models[[paste0("m.",name, ".overall.rcs4", ".age.comorbidities")]]<-cph(Surv(time, status) ~ rcs(age,4)+
+         charlson+
+                 a_autoimmune_condition+a_chronic_kidney_disease+a_copd+
+                 a_dementia+a_heart_disease+a_hyperlipidemia+
+                 a_hypertension+a_t2_diabetes+a_malignant_neoplasm+a_obesity.5y,
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)
+models[[paste0("m.",name, ".overall.rcs5", ".age.comorbidities")]]<-cph(Surv(time, status) ~ rcs(age,5)+
+         charlson+
+                 a_autoimmune_condition+a_chronic_kidney_disease+a_copd+
+                 a_dementia+a_heart_disease+a_hyperlipidemia+
+                 a_hypertension+a_t2_diabetes+a_malignant_neoplasm+a_obesity.5y,
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)
+
+
+## models for male ------
+#data
+working.data<-r.data %>% filter(gender=="Male")
+dd<<-datadist(working.data); options(datadist = "dd" )
+# age only  
+models[[paste0("m.",name, ".male.linear", ".age.only")]]<-cph(Surv(time, status) ~ age,
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)
+models[[paste0("m.",name, ".male.quadratic", ".age.only")]]<-cph(Surv(time, status) ~ pol(age,2),
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)
+models[[paste0("m.",name, ".male.rcs3", ".age.only")]]<-cph(Surv(time, status) ~ rcs(age,3),
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)
+models[[paste0("m.",name, ".male.rcs4", ".age.only")]]<-cph(Surv(time, status) ~ rcs(age,4),
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)
+models[[paste0("m.",name, ".male.rcs5", ".age.only")]]<-cph(Surv(time, status) ~ rcs(age,5),
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)
+models[[paste0("m.",name, ".male.linear", ".age.comorbidities")]]<-cph(Surv(time, status) ~ age+                      charlson+
+                 a_autoimmune_condition+a_chronic_kidney_disease+a_copd+
+                 a_dementia+a_heart_disease+a_hyperlipidemia+
+                 a_hypertension+a_t2_diabetes+a_malignant_neoplasm+a_obesity.5y,
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)
+models[[paste0("m.",name, ".male.quadratic", ".age.comorbidities")]]<-cph(Surv(time, status) ~ pol(age,2)+
+   charlson+
+                 a_autoimmune_condition+a_chronic_kidney_disease+a_copd+
+                 a_dementia+a_heart_disease+a_hyperlipidemia+
+                 a_hypertension+a_t2_diabetes+a_malignant_neoplasm+a_obesity.5y,
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)
+models[[paste0("m.",name, ".male.rcs3", ".age.comorbidities")]]<-cph(Surv(time, status) ~ rcs(age,3)+
+              charlson+
+                 a_autoimmune_condition+a_chronic_kidney_disease+a_copd+
+                 a_dementia+a_heart_disease+a_hyperlipidemia+
+                 a_hypertension+a_t2_diabetes+a_malignant_neoplasm+a_obesity.5y,
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)
+models[[paste0("m.",name, ".male.rcs4", ".age.comorbidities")]]<-cph(Surv(time, status) ~ rcs(age,4)+
+         charlson+
+                 a_autoimmune_condition+a_chronic_kidney_disease+a_copd+
+                 a_dementia+a_heart_disease+a_hyperlipidemia+
+                 a_hypertension+a_t2_diabetes+a_malignant_neoplasm+a_obesity.5y,
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)
+models[[paste0("m.",name, ".male.rcs5", ".age.comorbidities")]]<-cph(Surv(time, status) ~ rcs(age,5)+
+         charlson+
+                 a_autoimmune_condition+a_chronic_kidney_disease+a_copd+
+                 a_dementia+a_heart_disease+a_hyperlipidemia+
+                 a_hypertension+a_t2_diabetes+a_malignant_neoplasm+a_obesity.5y,
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)
+   
+  
+## models for female ------
+#data
+working.data<-r.data %>% filter(gender=="Female")
+dd<<-datadist(working.data); options(datadist = "dd" )
+# age only  
+models[[paste0("m.",name, ".female.linear", ".age.only")]]<-cph(Surv(time, status) ~ age,
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)
+models[[paste0("m.",name, ".female.quadratic", ".age.only")]]<-cph(Surv(time, status) ~ pol(age,2),
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)
+models[[paste0("m.",name, ".female.rcs3", ".age.only")]]<-cph(Surv(time, status) ~ rcs(age,3),
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)
+models[[paste0("m.",name, ".female.rcs4", ".age.only")]]<-cph(Surv(time, status) ~ rcs(age,4),
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)
+models[[paste0("m.",name, ".female.rcs5", ".age.only")]]<-cph(Surv(time, status) ~ rcs(age,5),
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)
+# age + comorbidities  
+models[[paste0("m.",name, ".female.linear", ".age.comorbidities")]]<-cph(Surv(time, status) ~ age+
+               charlson+
+                 a_autoimmune_condition+a_chronic_kidney_disease+a_copd+
+                 a_dementia+a_heart_disease+a_hyperlipidemia+
+                 a_hypertension+a_t2_diabetes+a_malignant_neoplasm+a_obesity.5y,
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)
+models[[paste0("m.",name, ".female.quadratic", ".age.comorbidities")]]<-cph(Surv(time, status) ~ pol(age,2)+
+           charlson+
+                 a_autoimmune_condition+a_chronic_kidney_disease+a_copd+
+                 a_dementia+a_heart_disease+a_hyperlipidemia+
+                 a_hypertension+a_t2_diabetes+a_malignant_neoplasm+a_obesity.5y,
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)
+models[[paste0("m.",name, ".female.rcs3", ".age.comorbidities")]]<-cph(Surv(time, status) ~ rcs(age,3)+
+                charlson+
+                 a_autoimmune_condition+a_chronic_kidney_disease+a_copd+
+                 a_dementia+a_heart_disease+a_hyperlipidemia+
+                 a_hypertension+a_t2_diabetes+a_malignant_neoplasm+a_obesity.5y,
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)
+models[[paste0("m.",name, ".female.rcs4", ".age.comorbidities")]]<-cph(Surv(time, status) ~ rcs(age,4)+
+                 charlson+
+                 a_autoimmune_condition+a_chronic_kidney_disease+a_copd+
+                 a_dementia+a_heart_disease+a_hyperlipidemia+
+                 a_hypertension+a_t2_diabetes+a_malignant_neoplasm+a_obesity.5y,
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)
+models[[paste0("m.",name, ".female.rcs5", ".age.comorbidities")]]<-cph(Surv(time, status) ~ rcs(age,5)+
+                 charlson+
+                 a_autoimmune_condition+a_chronic_kidney_disease+a_copd+
+                 a_dementia+a_heart_disease+a_hyperlipidemia+
+                 a_hypertension+a_t2_diabetes+a_malignant_neoplasm+a_obesity.5y,
+       surv=TRUE,x=TRUE,y=TRUE,
+       data = working.data)  
+
+## output ----
+models
+}
+
+  
+# To get relative hazards for each model in list
+# also add in AIC and BIC
+get.r.hazard<-function(models,   #list of models
+                           age.1,    # reference age 
+                           age.2){   # comparison ages
+
+
+output<-lapply(models, function(x) {
+ model<- x
+ output<-NULL
+  for(i in 1:length(age.2)){  
+
+working.summary<-head(as.data.frame(summary({{model}}, 
+        age=c({{age.1}},{{age.2[i]}}), antilog=FALSE)),1)  # 1st- age
+working.summary<-working.summary %>% 
+  select(Effect,`Lower 0.95`, `Upper 0.95`) %>% 
+  mutate(hr=exp(Effect),
+         hr.low=exp(`Lower 0.95`),
+         hr.high=exp(`Upper 0.95`)) %>% 
+  mutate(ref.age=age.1,
+         rel.age=age.2[i]) %>% 
+  select(hr, hr.low, hr.high, ref.age, rel.age)
+#browser()
+working.summary$aic<-AIC({{model}})
+working.summary$bic<-BIC({{model}})
+
+output<-rbind(output, working.summary)
+
+}
+
+  output
+  
+})
+# to dataframe
+output <-bind_rows(output, .id = "model")
+output
+}
+
+
+```
+
+```{r, cache=TRUE}
+# get models -----
+models.healthy.diagnosis<-get.models(r.healthy.diagnosis, "healthy.diagnosis")
+models.healthy.hospitalised<-get.models(r.healthy.hospitalised, "healthy.hospitalised")
+models.diagnosis.hospitalised<-get.models(r.diagnosis.hospitalised, "diagnosis.hospitalised")
+models.diagnosis.death<-get.models(r.diagnosis.death, "diagnosis.death")
+models.hospitalised.death<-get.models(r.hospitalised.death, "hospitalised.death")
+
+# #save
+# save(models.healthy.diagnosis, file = "age.m.healthy.diagnosis.RDATA")
+# save(models.healthy.hospitalised, file = "age.m.healthy.hospitalised.RDATA")
+# save(models.diagnosis.hospitalised, file = "age.m.diagnosis.hospitalised.RDATA")
+# save(models.diagnosis.death, file = "age.m.diagnosis.death.RDATA")
+# save(models.hospitalised.death, file = "age.m.hospitalised.death.RDATA")
+
+
+# #load
+# load("age.m.healthy.diagnosis.RDATA")
+# load("age.m.healthy.hospitalised.RDATA")
+# load("age.m.diagnosis.hospitalised.RDATA")
+# load("age.m.diagnosis.death.RDATA")
+# load("age.m.hospitalised.death.RDATA")
+```
+
+# Tansition 1: From general population to diagnosed with COVID-19 
+```{r}
+# models and relative hazards from models -----
+r.hazard<-get.r.hazard(model=models.healthy.diagnosis,
+                 age.1=65,
+                 age.2=seq(0,100, 1)) 
+
+```
+
+## Comparison of alternative models
+### Model fit
+```{r}
+fit<-rbind(
+# overall - age only
+r.hazard %>% 
+  filter(str_detect(model, ".overall")) %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="overall.age.only"),
+# overall - comorbidities
+r.hazard %>% 
+  filter(str_detect(model, ".overall")) %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="overall.comorbidities"),  
+  
+# male - age only
+r.hazard %>% 
+  filter(str_detect(model, "overall", negate=T)) %>% 
+  filter(str_detect(model, ".female", negate=T)) %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="male.age.only"),
+# male - comorbidities
+r.hazard %>% 
+  filter(str_detect(model, "overall", negate=T)) %>% 
+  filter(str_detect(model, ".female", negate=T)) %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="male.comorbidities"),
+# female - age only
+r.hazard %>% 
+  filter(str_detect(model, ".female")) %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="female.age.only"),
+# female - comorbidities
+r.hazard %>% 
+  filter(str_detect(model, ".female")) %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="female.comorbidities"))
+
+fit<-fit %>%
+  pivot_wider(names_from = name, 
+              values_from = c(aic,bic)) 
+fit<-fit %>%
+  select(type ,       
+          aic_overall.age.only, bic_overall.age.only,
+          aic_overall.comorbidities,bic_overall.comorbidities,
+          aic_male.age.only, bic_male.age.only,
+          aic_male.comorbidities,bic_male.comorbidities,
+          aic_female.age.only, bic_female.age.only,
+          aic_female.comorbidities,bic_female.comorbidities)
+               
+
+kable(fit %>% 
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",      
+                            type)))), 
+      col.names = c("Type",  
+                    "AIC","BIC", 
+                    "AIC","BIC", 
+                    "AIC","BIC",
+                   "AIC","BIC",
+                   "AIC","BIC",
+                   "AIC","BIC"))  %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))  %>%
+  add_header_above( c("",
+    "Overall - age only" = 2,
+    "Overall - age and comorbidities" = 2,
+    "Male - age only" = 2,
+    "Male - age and comorbidities" = 2,
+    "Female - age only" = 2,
+    "Female - age and comorbidities" = 2))  %>%
+  add_header_above(
+    c("Fit from alternative appoaches to modelling age" = 13))%>%
+  add_header_above(
+    c("From general population to diagnosed with COVID-19" = 13))
+```
+
+### Relative hazard ratios
+```{r}
+# oveall age only
+r.hazard %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, "overall")) %>%  
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: Overall - from age only model",
+              subtitle = "Reference age: 65")
+  
+
+# overall age and comorbidities
+r.hazard %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, "overall")) %>%  
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: Overall - from age and comorbidity model",
+              subtitle = "Reference age: 65")
+
+
+
+# male age only
+r.hazard %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, "overall", negate=T)) %>%  
+  filter(str_detect(model, ".female", negate=T)) %>%  
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: Male - from age only model",
+              subtitle = "Reference age: 65")
+  
+
+# male age and comorbidities
+r.hazard %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, "overall", negate=T)) %>%  
+  filter(str_detect(model, ".female", negate=T)) %>%  
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: Male - from age and comorbidity model",
+              subtitle = "Reference age: 65")
+
+
+
+
+
+# female age only
+r.hazard %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, ".female")) %>%   
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: female - from age only model",
+              subtitle = "Reference age: 65")
+  
+
+# female age and comorbidities
+r.hazard %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, ".female")) %>%  
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: female - from age and comorbidity model",
+              subtitle = "Reference age: 65")
+
+  
+```
+
+
+## Summary of selected models
+Restricted cubic spline, with 5 knots.
+
+### Relative hazard ratios from selected models
+```{r}
+est<-
+r.hazard %>% 
+  filter(str_detect(model, "overall")) %>%  
+  filter(str_detect(model, "age.only")) %>% 
+  filter(str_detect(model,"rcs5")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.overall.age.only=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>% 
+  select(rel.age, est.overall.age.only) %>% 
+  left_join(
+r.hazard %>% 
+  filter(str_detect(model, "overall")) %>%  
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  filter(str_detect(model,"rcs5")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.overall.age.comorbidities=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>%  
+  select(rel.age, est.overall.age.comorbidities)) %>% 
+left_join(  
+  r.hazard %>% 
+  filter(str_detect(model, "overall", negate=T)) %>%  
+  filter(str_detect(model, ".female", negate=T)) %>%
+  filter(str_detect(model, "age.only")) %>% 
+  filter(str_detect(model,"rcs5")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.male.age.only=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>% 
+  select(rel.age, est.male.age.only)) %>% 
+  left_join(
+r.hazard %>% 
+  filter(str_detect(model, "overall", negate=T)) %>%  
+  filter(str_detect(model, ".female", negate=T)) %>%
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  filter(str_detect(model,"rcs5")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.male.age.comorbidities=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>% 
+  select(rel.age, est.male.age.comorbidities)) %>% 
+  left_join(
+r.hazard %>% 
+  filter(str_detect(model, ".female")) %>%
+  filter(str_detect(model, "age.only")) %>% 
+  filter(str_detect(model,"rcs5")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.female.age.only=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>% 
+  select(rel.age, est.female.age.only)) %>% 
+  left_join(
+r.hazard %>% 
+  filter(str_detect(model, ".female")) %>%
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  filter(str_detect(model,"rcs5")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.female.age.comorbidities=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>% 
+  select(rel.age, est.female.age.comorbidities))
+  
+
+est<-est %>% 
+  mutate(est.overall.age.only= ifelse(rel.age==65, "ref", est.overall.age.only),
+         est.overall.age.comorbidities= ifelse(rel.age==65, "ref", est.overall.age.comorbidities),
+         est.male.age.only= ifelse(rel.age==65, "ref", est.male.age.only),
+         est.male.age.comorbidities= ifelse(rel.age==65, "ref", est.male.age.comorbidities),
+         est.female.age.only= ifelse(rel.age==65, "ref", est.female.age.only),
+         est.female.age.comorbidities= ifelse(rel.age==65, "ref", est.female.age.comorbidities)
+         )
+
+kable(est,
+      col.names = 
+        c("Age", 
+          "Age only model", 
+          "Age and comorbidity model", 
+          "Age only model", 
+          "Age and comorbidity model", 
+          "Age only model", 
+          "Age and comorbidity model")) %>%
+  add_header_above(c("", "Overall"=2,
+    "Male"=2  , "Female"=2))  %>%
+  add_header_above(c("Relative hazard ratios (95% CI) for age from models" = 7))  %>%
+  add_header_above(
+    c("From general population to diagnosed with COVID-19" = 7)) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered")) 
+
+
+```
+### Model parameters
+
+```{r}
+#overall- age only
+hr.overall.age.only<-data.frame(
+hr.est=exp(models.healthy.diagnosis$m.healthy.diagnosis.overall.rcs5.age.only$coefficients),
+hr.low=exp(confint(models.healthy.diagnosis$m.healthy.diagnosis.overall.rcs5.age.only))[,1],
+hr.high=exp(confint(models.healthy.diagnosis$m.healthy.diagnosis.overall.rcs5.age.only))[,2])
+hr.overall.age.only$var<-rownames(hr.overall.age.only)
+
+hr.overall.age.only<-hr.overall.age.only %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+#male- age and comorbidities
+hr.overall.age.comorbidities<-data.frame(
+hr.est=exp(models.healthy.diagnosis$m.healthy.diagnosis.overall.rcs5.age.comorbidities$coefficients),
+hr.low=exp(confint(models.healthy.diagnosis$m.healthy.diagnosis.overall.rcs5.age.comorbidities))[,1],
+hr.high=exp(confint(models.healthy.diagnosis$m.healthy.diagnosis.overall.rcs5.age.comorbidities))[,2])
+hr.overall.age.comorbidities$var<-rownames(hr.overall.age.comorbidities)
+
+hr.overall.age.comorbidities<-hr.overall.age.comorbidities %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+hr.overall.age.comorbidities<-hr.overall.age.comorbidities %>%
+  mutate(var=str_replace(var, "a_", "")) %>%
+  mutate(var=str_replace(var, "_", " ")) %>%
+  mutate(var=str_replace(var, "t2", "Type 2")) %>%
+  mutate(var=str_replace(var, "copd", "COPD"))  %>%
+  mutate(var=str_to_sentence(var))
+
+
+hr.male.age.only<-data.frame(
+hr.est=exp(models.healthy.diagnosis$m.healthy.diagnosis.male.rcs5.age.only$coefficients),
+hr.low=exp(confint(models.healthy.diagnosis$m.healthy.diagnosis.male.rcs5.age.only))[,1],
+hr.high=exp(confint(models.healthy.diagnosis$m.healthy.diagnosis.male.rcs5.age.only))[,2])
+hr.male.age.only$var<-rownames(hr.male.age.only)
+
+hr.male.age.only<-hr.male.age.only %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+#male- age and comorbidities
+hr.male.age.comorbidities<-data.frame(
+hr.est=exp(models.healthy.diagnosis$m.healthy.diagnosis.male.rcs5.age.comorbidities$coefficients),
+hr.low=exp(confint(models.healthy.diagnosis$m.healthy.diagnosis.male.rcs5.age.comorbidities))[,1],
+hr.high=exp(confint(models.healthy.diagnosis$m.healthy.diagnosis.male.rcs5.age.comorbidities))[,2])
+hr.male.age.comorbidities$var<-rownames(hr.male.age.comorbidities)
+
+hr.male.age.comorbidities<-hr.male.age.comorbidities %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+hr.male.age.comorbidities<-hr.male.age.comorbidities %>%
+  mutate(var=str_replace(var, "a_", "")) %>%
+  mutate(var=str_replace(var, "_", " ")) %>%
+  mutate(var=str_replace(var, "t2", "Type 2")) %>%
+  mutate(var=str_replace(var, "copd", "COPD"))  %>%
+  mutate(var=str_to_sentence(var))
+
+
+#female- age only
+hr.female.age.only<-data.frame(
+hr.est=exp(models.healthy.diagnosis$m.healthy.diagnosis.female.rcs5.age.only$coefficients),
+hr.low=exp(confint(models.healthy.diagnosis$m.healthy.diagnosis.female.rcs5.age.only))[,1],
+hr.high=exp(confint(models.healthy.diagnosis$m.healthy.diagnosis.female.rcs5.age.only))[,2])
+hr.female.age.only$var<-rownames(hr.female.age.only)
+
+hr.female.age.only<-hr.female.age.only %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+
+#female- age and comorbidities
+hr.female.age.comorbidities<-data.frame(
+hr.est=exp(models.healthy.diagnosis$m.healthy.diagnosis.female.rcs5.age.comorbidities$coefficients),
+hr.low=exp(confint(models.healthy.diagnosis$m.healthy.diagnosis.female.rcs5.age.comorbidities))[,1],
+hr.high=exp(confint(models.healthy.diagnosis$m.healthy.diagnosis.female.rcs5.age.comorbidities))[,2])
+hr.female.age.comorbidities$var<-rownames(hr.female.age.comorbidities)
+
+hr.female.age.comorbidities<-hr.female.age.comorbidities %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+hr.female.age.comorbidities<-hr.female.age.comorbidities %>%
+  mutate(var=str_replace(var, "a_", "")) %>%
+  mutate(var=str_replace(var, "_", " ")) %>%
+  mutate(var=str_replace(var, "t2", "Type 2")) %>%
+  mutate(var=str_replace(var, "copd", "COPD")) %>%
+  mutate(var=str_to_sentence(var))
+
+
+
+## combine
+
+hr<-hr.overall.age.only %>% mutate(var=str_to_sentence(var)) %>% 
+  rename(hr.overall.age.only=hr) %>% 
+  full_join(hr.overall.age.comorbidities %>% rename(hr.overall.age.comorbidities=hr) ,
+             by="var") %>% 
+  full_join(hr.male.age.only %>% mutate(var=str_to_sentence(var))  %>% rename(hr.male.age.only=hr) ,
+             by="var") %>% 
+  full_join(hr.male.age.comorbidities %>% rename(hr.male.age.comorbidities=hr) ,
+             by="var")  %>% 
+  full_join(hr.female.age.only %>% mutate(var=str_to_sentence(var))  %>% rename(hr.female.age.only=hr) ,
+             by="var") %>% 
+  full_join(hr.female.age.comorbidities %>% rename(hr.female.age.comorbidities=hr) ,
+             by="var") 
+  
+
+kable(hr,
+      col.names = c("", rep("Hazard ratio (95% CI)",6))) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered")) %>%
+  add_header_above(c(
+    "",
+    "Overall: age only",  "Overall: age and comorbidity", 
+    "Male: age only",  "Male: age and comorbidity", 
+    "Female: age only",  "Female: age and comorbidity" )) %>%
+  add_header_above(
+    c("From general population to diagnosed with COVID-19" = 7)) 
+
+
+
+```
+
+
+
+
+# Tansition 2: From general population to hospitalised with COVID-19 
+```{r}
+# models and relative hazards from models -----
+r.hazard<-get.r.hazard(model=models.healthy.hospitalised,
+                 age.1=65,
+                 age.2=seq(0,100, 1)) 
+
+```
+
+## Comparison of alternative models
+### Model fit
+```{r}
+fit<-rbind(
+# overall - age only
+r.hazard %>% 
+  filter(str_detect(model, ".overall")) %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="overall.age.only"),
+# overall - comorbidities
+r.hazard %>% 
+  filter(str_detect(model, ".overall")) %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="overall.comorbidities"),  
+  
+# male - age only
+r.hazard %>% 
+  filter(str_detect(model, "overall", negate=T)) %>% 
+  filter(str_detect(model, ".female", negate=T)) %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="male.age.only"),
+# male - comorbidities
+r.hazard %>% 
+  filter(str_detect(model, "overall", negate=T)) %>% 
+  filter(str_detect(model, ".female", negate=T)) %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="male.comorbidities"),
+# female - age only
+r.hazard %>% 
+  filter(str_detect(model, ".female")) %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="female.age.only"),
+# female - comorbidities
+r.hazard %>% 
+  filter(str_detect(model, ".female")) %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="female.comorbidities"))
+
+fit<-fit %>%
+  pivot_wider(names_from = name, 
+              values_from = c(aic,bic)) 
+fit<-fit %>%
+  select(type ,       
+          aic_overall.age.only, bic_overall.age.only,
+          aic_overall.comorbidities,bic_overall.comorbidities,
+          aic_male.age.only, bic_male.age.only,
+          aic_male.comorbidities,bic_male.comorbidities,
+          aic_female.age.only, bic_female.age.only,
+          aic_female.comorbidities,bic_female.comorbidities)
+               
+
+kable(fit %>% 
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",      
+                            type)))), 
+      col.names = c("Type",  
+                    "AIC","BIC", 
+                    "AIC","BIC", 
+                    "AIC","BIC",
+                   "AIC","BIC",
+                   "AIC","BIC",
+                   "AIC","BIC"))  %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))  %>%
+  add_header_above( c("",
+    "Overall - age only" = 2,
+    "Overall - age and comorbidities" = 2,
+    "Male - age only" = 2,
+    "Male - age and comorbidities" = 2,
+    "Female - age only" = 2,
+    "Female - age and comorbidities" = 2))  %>%
+  add_header_above(
+    c("Fit from alternative appoaches to modelling age" = 13))%>%
+  add_header_above(
+    c("From general population to diagnosed with COVID-19" = 13))
+```
+
+### Relative hazard ratios
+```{r}
+# oveall age only
+r.hazard %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, "overall")) %>%  
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: Overall - from age only model",
+              subtitle = "Reference age: 65")
+  
+
+# overall age and comorbidities
+r.hazard %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, "overall")) %>%  
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: Overall - from age and comorbidity model",
+              subtitle = "Reference age: 65")
+
+
+
+# male age only
+r.hazard %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, "overall", negate=T)) %>%  
+  filter(str_detect(model, ".female", negate=T)) %>%  
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: Male - from age only model",
+              subtitle = "Reference age: 65")
+  
+
+# male age and comorbidities
+r.hazard %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, "overall", negate=T)) %>%  
+  filter(str_detect(model, ".female", negate=T)) %>%  
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: Male - from age and comorbidity model",
+              subtitle = "Reference age: 65")
+
+
+
+
+
+# female age only
+r.hazard %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, ".female")) %>%   
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: female - from age only model",
+              subtitle = "Reference age: 65")
+  
+
+# female age and comorbidities
+r.hazard %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, ".female")) %>%  
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: female - from age and comorbidity model",
+              subtitle = "Reference age: 65")
+
+  
+```
+
+
+## Summary of selected models
+Quadratic.
+
+### Relative hazard ratios from selected models
+```{r}
+est<-
+r.hazard %>% 
+  filter(str_detect(model, "overall")) %>%  
+  filter(str_detect(model, "age.only")) %>% 
+  filter(str_detect(model,"quadratic")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.overall.age.only=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>% 
+  select(rel.age, est.overall.age.only) %>% 
+  left_join(
+r.hazard %>% 
+  filter(str_detect(model, "overall")) %>%  
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  filter(str_detect(model,"quadratic")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.overall.age.comorbidities=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>%  
+  select(rel.age, est.overall.age.comorbidities)) %>% 
+left_join(  
+  r.hazard %>% 
+  filter(str_detect(model, "overall", negate=T)) %>%  
+  filter(str_detect(model, ".female", negate=T)) %>%
+  filter(str_detect(model, "age.only")) %>% 
+  filter(str_detect(model,"quadratic")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.male.age.only=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>% 
+  select(rel.age, est.male.age.only)) %>% 
+  left_join(
+r.hazard %>% 
+  filter(str_detect(model, "overall", negate=T)) %>%  
+  filter(str_detect(model, ".female", negate=T)) %>%
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  filter(str_detect(model,"quadratic")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.male.age.comorbidities=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>% 
+  select(rel.age, est.male.age.comorbidities)) %>% 
+  left_join(
+r.hazard %>% 
+  filter(str_detect(model, ".female")) %>%
+  filter(str_detect(model, "age.only")) %>% 
+  filter(str_detect(model,"quadratic")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.female.age.only=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>% 
+  select(rel.age, est.female.age.only)) %>% 
+  left_join(
+r.hazard %>% 
+  filter(str_detect(model, ".female")) %>%
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  filter(str_detect(model,"quadratic")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.female.age.comorbidities=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>% 
+  select(rel.age, est.female.age.comorbidities))
+  
+
+est<-est %>% 
+  mutate(est.overall.age.only= ifelse(rel.age==65, "ref", est.overall.age.only),
+         est.overall.age.comorbidities= ifelse(rel.age==65, "ref", est.overall.age.comorbidities),
+         est.male.age.only= ifelse(rel.age==65, "ref", est.male.age.only),
+         est.male.age.comorbidities= ifelse(rel.age==65, "ref", est.male.age.comorbidities),
+         est.female.age.only= ifelse(rel.age==65, "ref", est.female.age.only),
+         est.female.age.comorbidities= ifelse(rel.age==65, "ref", est.female.age.comorbidities)
+         )
+
+kable(est,
+      col.names = 
+        c("Age", 
+          "Age only model", 
+          "Age and comorbidity model", 
+          "Age only model", 
+          "Age and comorbidity model", 
+          "Age only model", 
+          "Age and comorbidity model")) %>%
+  add_header_above(c("", "Overall"=2,
+    "Male"=2  , "Female"=2))  %>%
+  add_header_above(c("Relative hazard ratios (95% CI) for age from models" = 7))  %>%
+  add_header_above(
+    c("From general population to hospitalised with COVID-19" = 7)) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered")) 
+
+
+```
+### Model parameters
+
+```{r}
+#overall- age only
+hr.overall.age.only<-data.frame(
+hr.est=exp(models.healthy.hospitalised$m.healthy.hospitalised.overall.quadratic.age.only$coefficients),
+hr.low=exp(confint(models.healthy.hospitalised$m.healthy.hospitalised.overall.quadratic.age.only))[,1],
+hr.high=exp(confint(models.healthy.hospitalised$m.healthy.hospitalised.overall.quadratic.age.only))[,2])
+hr.overall.age.only$var<-rownames(hr.overall.age.only)
+
+hr.overall.age.only<-hr.overall.age.only %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+#male- age and comorbidities
+hr.overall.age.comorbidities<-data.frame(
+hr.est=exp(models.healthy.hospitalised$m.healthy.hospitalised.overall.quadratic.age.comorbidities$coefficients),
+hr.low=exp(confint(models.healthy.hospitalised$m.healthy.hospitalised.overall.quadratic.age.comorbidities))[,1],
+hr.high=exp(confint(models.healthy.hospitalised$m.healthy.hospitalised.overall.quadratic.age.comorbidities))[,2])
+hr.overall.age.comorbidities$var<-rownames(hr.overall.age.comorbidities)
+
+hr.overall.age.comorbidities<-hr.overall.age.comorbidities %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+hr.overall.age.comorbidities<-hr.overall.age.comorbidities %>%
+  mutate(var=str_replace(var, "a_", "")) %>%
+  mutate(var=str_replace(var, "_", " ")) %>%
+  mutate(var=str_replace(var, "t2", "Type 2")) %>%
+  mutate(var=str_replace(var, "copd", "COPD"))  %>%
+  mutate(var=str_to_sentence(var))
+
+
+hr.male.age.only<-data.frame(
+hr.est=exp(models.healthy.hospitalised$m.healthy.hospitalised.male.quadratic.age.only$coefficients),
+hr.low=exp(confint(models.healthy.hospitalised$m.healthy.hospitalised.male.quadratic.age.only))[,1],
+hr.high=exp(confint(models.healthy.hospitalised$m.healthy.hospitalised.male.quadratic.age.only))[,2])
+hr.male.age.only$var<-rownames(hr.male.age.only)
+
+hr.male.age.only<-hr.male.age.only %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+#male- age and comorbidities
+hr.male.age.comorbidities<-data.frame(
+hr.est=exp(models.healthy.hospitalised$m.healthy.hospitalised.male.quadratic.age.comorbidities$coefficients),
+hr.low=exp(confint(models.healthy.hospitalised$m.healthy.hospitalised.male.quadratic.age.comorbidities))[,1],
+hr.high=exp(confint(models.healthy.hospitalised$m.healthy.hospitalised.male.quadratic.age.comorbidities))[,2])
+hr.male.age.comorbidities$var<-rownames(hr.male.age.comorbidities)
+
+hr.male.age.comorbidities<-hr.male.age.comorbidities %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+hr.male.age.comorbidities<-hr.male.age.comorbidities %>%
+  mutate(var=str_replace(var, "a_", "")) %>%
+  mutate(var=str_replace(var, "_", " ")) %>%
+  mutate(var=str_replace(var, "t2", "Type 2")) %>%
+  mutate(var=str_replace(var, "copd", "COPD"))  %>%
+  mutate(var=str_to_sentence(var))
+
+
+#female- age only
+hr.female.age.only<-data.frame(
+hr.est=exp(models.healthy.hospitalised$m.healthy.hospitalised.female.quadratic.age.only$coefficients),
+hr.low=exp(confint(models.healthy.hospitalised$m.healthy.hospitalised.female.quadratic.age.only))[,1],
+hr.high=exp(confint(models.healthy.hospitalised$m.healthy.hospitalised.female.quadratic.age.only))[,2])
+hr.female.age.only$var<-rownames(hr.female.age.only)
+
+hr.female.age.only<-hr.female.age.only %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+
+#female- age and comorbidities
+hr.female.age.comorbidities<-data.frame(
+hr.est=exp(models.healthy.hospitalised$m.healthy.hospitalised.female.quadratic.age.comorbidities$coefficients),
+hr.low=exp(confint(models.healthy.hospitalised$m.healthy.hospitalised.female.quadratic.age.comorbidities))[,1],
+hr.high=exp(confint(models.healthy.hospitalised$m.healthy.hospitalised.female.quadratic.age.comorbidities))[,2])
+hr.female.age.comorbidities$var<-rownames(hr.female.age.comorbidities)
+
+hr.female.age.comorbidities<-hr.female.age.comorbidities %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+hr.female.age.comorbidities<-hr.female.age.comorbidities %>%
+  mutate(var=str_replace(var, "a_", "")) %>%
+  mutate(var=str_replace(var, "_", " ")) %>%
+  mutate(var=str_replace(var, "t2", "Type 2")) %>%
+  mutate(var=str_replace(var, "copd", "COPD")) %>%
+  mutate(var=str_to_sentence(var))
+
+
+
+## combine
+
+hr<-hr.overall.age.only %>% mutate(var=str_to_sentence(var)) %>% 
+  rename(hr.overall.age.only=hr) %>% 
+  full_join(hr.overall.age.comorbidities %>% rename(hr.overall.age.comorbidities=hr) ,
+             by="var") %>% 
+  full_join(hr.male.age.only %>% mutate(var=str_to_sentence(var))  %>% rename(hr.male.age.only=hr) ,
+             by="var") %>% 
+  full_join(hr.male.age.comorbidities %>% rename(hr.male.age.comorbidities=hr) ,
+             by="var")  %>% 
+  full_join(hr.female.age.only %>% mutate(var=str_to_sentence(var))  %>% rename(hr.female.age.only=hr) ,
+             by="var") %>% 
+  full_join(hr.female.age.comorbidities %>% rename(hr.female.age.comorbidities=hr) ,
+             by="var") 
+  
+
+kable(hr,
+      col.names = c("", rep("Hazard ratio (95% CI)",6))) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered")) %>%
+  add_header_above(c(
+    "",
+    "Overall: age only",  "Overall: age and comorbidity", 
+    "Male: age only",  "Male: age and comorbidity", 
+    "Female: age only",  "Female: age and comorbidity" )) %>%
+  add_header_above(
+    c("From general population to hospitalised with COVID-19" = 7)) 
+
+
+
+```
+
+
+
+
+
+# Tansition 4: From diagnosed with COVID-19 to hospitalised with COVID-19 
+```{r}
+# models and relative hazards from models -----
+r.hazard<-get.r.hazard(model=models.diagnosis.hospitalised,
+                 age.1=65,
+                 age.2=seq(0,100, 1)) 
+
+```
+
+## Comparison of alternative models
+### Model fit
+```{r}
+fit<-rbind(
+# overall - age only
+r.hazard %>% 
+  filter(str_detect(model, ".overall")) %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="overall.age.only"),
+# overall - comorbidities
+r.hazard %>% 
+  filter(str_detect(model, ".overall")) %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="overall.comorbidities"),  
+  
+# male - age only
+r.hazard %>% 
+  filter(str_detect(model, "overall", negate=T)) %>% 
+  filter(str_detect(model, ".female", negate=T)) %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="male.age.only"),
+# male - comorbidities
+r.hazard %>% 
+  filter(str_detect(model, "overall", negate=T)) %>% 
+  filter(str_detect(model, ".female", negate=T)) %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="male.comorbidities"),
+# female - age only
+r.hazard %>% 
+  filter(str_detect(model, ".female")) %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="female.age.only"),
+# female - comorbidities
+r.hazard %>% 
+  filter(str_detect(model, ".female")) %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="female.comorbidities"))
+
+fit<-fit %>%
+  pivot_wider(names_from = name, 
+              values_from = c(aic,bic)) 
+fit<-fit %>%
+  select(type ,       
+          aic_overall.age.only, bic_overall.age.only,
+          aic_overall.comorbidities,bic_overall.comorbidities,
+          aic_male.age.only, bic_male.age.only,
+          aic_male.comorbidities,bic_male.comorbidities,
+          aic_female.age.only, bic_female.age.only,
+          aic_female.comorbidities,bic_female.comorbidities)
+               
+
+kable(fit %>% 
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",      
+                            type)))), 
+      col.names = c("Type",  
+                    "AIC","BIC", 
+                    "AIC","BIC", 
+                    "AIC","BIC",
+                   "AIC","BIC",
+                   "AIC","BIC",
+                   "AIC","BIC"))  %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))  %>%
+  add_header_above( c("",
+    "Overall - age only" = 2,
+    "Overall - age and comorbidities" = 2,
+    "Male - age only" = 2,
+    "Male - age and comorbidities" = 2,
+    "Female - age only" = 2,
+    "Female - age and comorbidities" = 2))  %>%
+  add_header_above(
+    c("Fit from alternative appoaches to modelling age" = 13))%>%
+  add_header_above(
+    c("From general population to diagnosed with COVID-19" = 13))
+```
+
+### Relative hazard ratios
+```{r}
+# oveall age only
+r.hazard %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, "overall")) %>%  
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: Overall - from age only model",
+              subtitle = "Reference age: 65")
+  
+
+# overall age and comorbidities
+r.hazard %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, "overall")) %>%  
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: Overall - from age and comorbidity model",
+              subtitle = "Reference age: 65")
+
+
+
+# male age only
+r.hazard %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, "overall", negate=T)) %>%  
+  filter(str_detect(model, ".female", negate=T)) %>%  
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: Male - from age only model",
+              subtitle = "Reference age: 65")
+  
+
+# male age and comorbidities
+r.hazard %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, "overall", negate=T)) %>%  
+  filter(str_detect(model, ".female", negate=T)) %>%  
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: Male - from age and comorbidity model",
+              subtitle = "Reference age: 65")
+
+
+
+
+
+# female age only
+r.hazard %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, ".female")) %>%   
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: female - from age only model",
+              subtitle = "Reference age: 65")
+  
+
+# female age and comorbidities
+r.hazard %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, ".female")) %>%  
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: female - from age and comorbidity model",
+              subtitle = "Reference age: 65")
+
+  
+```
+
+
+## Summary of selected models
+Restricted cubic spline (5 knots).
+
+### Relative hazard ratios from selected models
+```{r}
+est<-
+r.hazard %>% 
+  filter(str_detect(model, "overall")) %>%  
+  filter(str_detect(model, "age.only")) %>% 
+  filter(str_detect(model,"rcs5")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.overall.age.only=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>% 
+  select(rel.age, est.overall.age.only) %>% 
+  left_join(
+r.hazard %>% 
+  filter(str_detect(model, "overall")) %>%  
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  filter(str_detect(model,"rcs5")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.overall.age.comorbidities=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>%  
+  select(rel.age, est.overall.age.comorbidities)) %>% 
+left_join(  
+  r.hazard %>% 
+  filter(str_detect(model, "overall", negate=T)) %>%  
+  filter(str_detect(model, ".female", negate=T)) %>%
+  filter(str_detect(model, "age.only")) %>% 
+  filter(str_detect(model,"rcs5")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.male.age.only=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>% 
+  select(rel.age, est.male.age.only)) %>% 
+  left_join(
+r.hazard %>% 
+  filter(str_detect(model, "overall", negate=T)) %>%  
+  filter(str_detect(model, ".female", negate=T)) %>%
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  filter(str_detect(model,"rcs5")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.male.age.comorbidities=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>% 
+  select(rel.age, est.male.age.comorbidities)) %>% 
+  left_join(
+r.hazard %>% 
+  filter(str_detect(model, ".female")) %>%
+  filter(str_detect(model, "age.only")) %>% 
+  filter(str_detect(model,"rcs5")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.female.age.only=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>% 
+  select(rel.age, est.female.age.only)) %>% 
+  left_join(
+r.hazard %>% 
+  filter(str_detect(model, ".female")) %>%
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  filter(str_detect(model,"rcs5")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.female.age.comorbidities=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>% 
+  select(rel.age, est.female.age.comorbidities))
+  
+
+est<-est %>% 
+  mutate(est.overall.age.only= ifelse(rel.age==65, "ref", est.overall.age.only),
+         est.overall.age.comorbidities= ifelse(rel.age==65, "ref", est.overall.age.comorbidities),
+         est.male.age.only= ifelse(rel.age==65, "ref", est.male.age.only),
+         est.male.age.comorbidities= ifelse(rel.age==65, "ref", est.male.age.comorbidities),
+         est.female.age.only= ifelse(rel.age==65, "ref", est.female.age.only),
+         est.female.age.comorbidities= ifelse(rel.age==65, "ref", est.female.age.comorbidities)
+         )
+
+kable(est,
+      col.names = 
+        c("Age", 
+          "Age only model", 
+          "Age and comorbidity model", 
+          "Age only model", 
+          "Age and comorbidity model", 
+          "Age only model", 
+          "Age and comorbidity model")) %>%
+  add_header_above(c("", "Overall"=2,
+    "Male"=2  , "Female"=2))  %>%
+  add_header_above(c("Relative hazard ratios (95% CI) for age from models" = 7))  %>%
+  add_header_above(
+    c("From diagnosed with COVID-19 to hospitalised with COVID-19" = 7)) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered")) 
+
+
+```
+### Model parameters
+
+```{r}
+#overall- age only
+hr.overall.age.only<-data.frame(
+hr.est=exp(models.diagnosis.hospitalised$m.diagnosis.hospitalised.overall.rcs5.age.only$coefficients),
+hr.low=exp(confint(models.diagnosis.hospitalised$m.diagnosis.hospitalised.overall.rcs5.age.only))[,1],
+hr.high=exp(confint(models.diagnosis.hospitalised$m.diagnosis.hospitalised.overall.rcs5.age.only))[,2])
+hr.overall.age.only$var<-rownames(hr.overall.age.only)
+
+hr.overall.age.only<-hr.overall.age.only %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+#male- age and comorbidities
+hr.overall.age.comorbidities<-data.frame(
+hr.est=exp(models.diagnosis.hospitalised$m.diagnosis.hospitalised.overall.rcs5.age.comorbidities$coefficients),
+hr.low=exp(confint(models.diagnosis.hospitalised$m.diagnosis.hospitalised.overall.rcs5.age.comorbidities))[,1],
+hr.high=exp(confint(models.diagnosis.hospitalised$m.diagnosis.hospitalised.overall.rcs5.age.comorbidities))[,2])
+hr.overall.age.comorbidities$var<-rownames(hr.overall.age.comorbidities)
+
+hr.overall.age.comorbidities<-hr.overall.age.comorbidities %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+hr.overall.age.comorbidities<-hr.overall.age.comorbidities %>%
+  mutate(var=str_replace(var, "a_", "")) %>%
+  mutate(var=str_replace(var, "_", " ")) %>%
+  mutate(var=str_replace(var, "t2", "Type 2")) %>%
+  mutate(var=str_replace(var, "copd", "COPD"))  %>%
+  mutate(var=str_to_sentence(var))
+
+
+hr.male.age.only<-data.frame(
+hr.est=exp(models.diagnosis.hospitalised$m.diagnosis.hospitalised.male.rcs5.age.only$coefficients),
+hr.low=exp(confint(models.diagnosis.hospitalised$m.diagnosis.hospitalised.male.rcs5.age.only))[,1],
+hr.high=exp(confint(models.diagnosis.hospitalised$m.diagnosis.hospitalised.male.rcs5.age.only))[,2])
+hr.male.age.only$var<-rownames(hr.male.age.only)
+
+hr.male.age.only<-hr.male.age.only %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+#male- age and comorbidities
+hr.male.age.comorbidities<-data.frame(
+hr.est=exp(models.diagnosis.hospitalised$m.diagnosis.hospitalised.male.rcs5.age.comorbidities$coefficients),
+hr.low=exp(confint(models.diagnosis.hospitalised$m.diagnosis.hospitalised.male.rcs5.age.comorbidities))[,1],
+hr.high=exp(confint(models.diagnosis.hospitalised$m.diagnosis.hospitalised.male.rcs5.age.comorbidities))[,2])
+hr.male.age.comorbidities$var<-rownames(hr.male.age.comorbidities)
+
+hr.male.age.comorbidities<-hr.male.age.comorbidities %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+hr.male.age.comorbidities<-hr.male.age.comorbidities %>%
+  mutate(var=str_replace(var, "a_", "")) %>%
+  mutate(var=str_replace(var, "_", " ")) %>%
+  mutate(var=str_replace(var, "t2", "Type 2")) %>%
+  mutate(var=str_replace(var, "copd", "COPD"))  %>%
+  mutate(var=str_to_sentence(var))
+
+
+#female- age only
+hr.female.age.only<-data.frame(
+hr.est=exp(models.diagnosis.hospitalised$m.diagnosis.hospitalised.female.rcs5.age.only$coefficients),
+hr.low=exp(confint(models.diagnosis.hospitalised$m.diagnosis.hospitalised.female.rcs5.age.only))[,1],
+hr.high=exp(confint(models.diagnosis.hospitalised$m.diagnosis.hospitalised.female.rcs5.age.only))[,2])
+hr.female.age.only$var<-rownames(hr.female.age.only)
+
+hr.female.age.only<-hr.female.age.only %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+
+#female- age and comorbidities
+hr.female.age.comorbidities<-data.frame(
+hr.est=exp(models.diagnosis.hospitalised$m.diagnosis.hospitalised.female.rcs5.age.comorbidities$coefficients),
+hr.low=exp(confint(models.diagnosis.hospitalised$m.diagnosis.hospitalised.female.rcs5.age.comorbidities))[,1],
+hr.high=exp(confint(models.diagnosis.hospitalised$m.diagnosis.hospitalised.female.rcs5.age.comorbidities))[,2])
+hr.female.age.comorbidities$var<-rownames(hr.female.age.comorbidities)
+
+hr.female.age.comorbidities<-hr.female.age.comorbidities %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+hr.female.age.comorbidities<-hr.female.age.comorbidities %>%
+  mutate(var=str_replace(var, "a_", "")) %>%
+  mutate(var=str_replace(var, "_", " ")) %>%
+  mutate(var=str_replace(var, "t2", "Type 2")) %>%
+  mutate(var=str_replace(var, "copd", "COPD")) %>%
+  mutate(var=str_to_sentence(var))
+
+
+
+## combine
+
+hr<-hr.overall.age.only %>% mutate(var=str_to_sentence(var)) %>% 
+  rename(hr.overall.age.only=hr) %>% 
+  full_join(hr.overall.age.comorbidities %>% rename(hr.overall.age.comorbidities=hr) ,
+             by="var") %>% 
+  full_join(hr.male.age.only %>% mutate(var=str_to_sentence(var))  %>% rename(hr.male.age.only=hr) ,
+             by="var") %>% 
+  full_join(hr.male.age.comorbidities %>% rename(hr.male.age.comorbidities=hr) ,
+             by="var")  %>% 
+  full_join(hr.female.age.only %>% mutate(var=str_to_sentence(var))  %>% rename(hr.female.age.only=hr) ,
+             by="var") %>% 
+  full_join(hr.female.age.comorbidities %>% rename(hr.female.age.comorbidities=hr) ,
+             by="var") 
+  
+
+kable(hr,
+      col.names = c("", rep("Hazard ratio (95% CI)",6))) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered")) %>%
+  add_header_above(c(
+    "",
+    "Overall: age only",  "Overall: age and comorbidity", 
+    "Male: age only",  "Male: age and comorbidity", 
+    "Female: age only",  "Female: age and comorbidity" )) %>%
+  add_header_above(
+    c("From diagnosed with COVID-19 to hospitalised with COVID-19" = 7)) 
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Tansition 5: From diagnosed with COVID-19 to death 
+```{r}
+# models and relative hazards from models -----
+r.hazard<-get.r.hazard(model=models.diagnosis.death,
+                 age.1=65,
+                 age.2=seq(0,100, 1)) 
+
+```
+
+## Comparison of alternative models
+### Model fit
+```{r}
+fit<-rbind(
+# overall - age only
+r.hazard %>% 
+  filter(str_detect(model, ".overall")) %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="overall.age.only"),
+# overall - comorbidities
+r.hazard %>% 
+  filter(str_detect(model, ".overall")) %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="overall.comorbidities"),  
+  
+# male - age only
+r.hazard %>% 
+  filter(str_detect(model, "overall", negate=T)) %>% 
+  filter(str_detect(model, ".female", negate=T)) %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="male.age.only"),
+# male - comorbidities
+r.hazard %>% 
+  filter(str_detect(model, "overall", negate=T)) %>% 
+  filter(str_detect(model, ".female", negate=T)) %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="male.comorbidities"),
+# female - age only
+r.hazard %>% 
+  filter(str_detect(model, ".female")) %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="female.age.only"),
+# female - comorbidities
+r.hazard %>% 
+  filter(str_detect(model, ".female")) %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="female.comorbidities"))
+
+fit<-fit %>%
+  pivot_wider(names_from = name, 
+              values_from = c(aic,bic)) 
+fit<-fit %>%
+  select(type ,       
+          aic_overall.age.only, bic_overall.age.only,
+          aic_overall.comorbidities,bic_overall.comorbidities,
+          aic_male.age.only, bic_male.age.only,
+          aic_male.comorbidities,bic_male.comorbidities,
+          aic_female.age.only, bic_female.age.only,
+          aic_female.comorbidities,bic_female.comorbidities)
+               
+
+kable(fit %>% 
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",      
+                            type)))), 
+      col.names = c("Type",  
+                    "AIC","BIC", 
+                    "AIC","BIC", 
+                    "AIC","BIC",
+                   "AIC","BIC",
+                   "AIC","BIC",
+                   "AIC","BIC"))  %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))  %>%
+  add_header_above( c("",
+    "Overall - age only" = 2,
+    "Overall - age and comorbidities" = 2,
+    "Male - age only" = 2,
+    "Male - age and comorbidities" = 2,
+    "Female - age only" = 2,
+    "Female - age and comorbidities" = 2))  %>%
+  add_header_above(
+    c("Fit from alternative appoaches to modelling age" = 13))%>%
+  add_header_above(
+    c("From general population to diagnosed with COVID-19" = 13))
+```
+
+### Relative hazard ratios
+```{r}
+# oveall age only
+r.hazard %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, "overall")) %>%  
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: Overall - from age only model",
+              subtitle = "Reference age: 65")
+  
+
+# overall age and comorbidities
+r.hazard %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, "overall")) %>%  
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: Overall - from age and comorbidity model",
+              subtitle = "Reference age: 65")
+
+
+
+# male age only
+r.hazard %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, "overall", negate=T)) %>%  
+  filter(str_detect(model, ".female", negate=T)) %>%  
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: Male - from age only model",
+              subtitle = "Reference age: 65")
+  
+
+# male age and comorbidities
+r.hazard %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, "overall", negate=T)) %>%  
+  filter(str_detect(model, ".female", negate=T)) %>%  
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: Male - from age and comorbidity model",
+              subtitle = "Reference age: 65")
+
+
+
+
+
+# female age only
+r.hazard %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, ".female")) %>%   
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: female - from age only model",
+              subtitle = "Reference age: 65")
+  
+
+# female age and comorbidities
+r.hazard %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, ".female")) %>%  
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: female - from age and comorbidity model",
+              subtitle = "Reference age: 65")
+
+  
+```
+
+
+## Summary of selected models
+Quadratic.
+
+### Relative hazard ratios from selected models
+```{r}
+est<-
+r.hazard %>% 
+  filter(str_detect(model, "overall")) %>%  
+  filter(str_detect(model, "age.only")) %>% 
+  filter(str_detect(model,"quadratic")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.overall.age.only=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>% 
+  select(rel.age, est.overall.age.only) %>% 
+  left_join(
+r.hazard %>% 
+  filter(str_detect(model, "overall")) %>%  
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  filter(str_detect(model,"quadratic")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.overall.age.comorbidities=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>%  
+  select(rel.age, est.overall.age.comorbidities)) %>% 
+left_join(  
+  r.hazard %>% 
+  filter(str_detect(model, "overall", negate=T)) %>%  
+  filter(str_detect(model, ".female", negate=T)) %>%
+  filter(str_detect(model, "age.only")) %>% 
+  filter(str_detect(model,"quadratic")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.male.age.only=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>% 
+  select(rel.age, est.male.age.only)) %>% 
+  left_join(
+r.hazard %>% 
+  filter(str_detect(model, "overall", negate=T)) %>%  
+  filter(str_detect(model, ".female", negate=T)) %>%
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  filter(str_detect(model,"quadratic")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.male.age.comorbidities=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>% 
+  select(rel.age, est.male.age.comorbidities)) %>% 
+  left_join(
+r.hazard %>% 
+  filter(str_detect(model, ".female")) %>%
+  filter(str_detect(model, "age.only")) %>% 
+  filter(str_detect(model,"quadratic")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.female.age.only=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>% 
+  select(rel.age, est.female.age.only)) %>% 
+  left_join(
+r.hazard %>% 
+  filter(str_detect(model, ".female")) %>%
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  filter(str_detect(model,"quadratic")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.female.age.comorbidities=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>% 
+  select(rel.age, est.female.age.comorbidities))
+  
+
+est<-est %>% 
+  mutate(est.overall.age.only= ifelse(rel.age==65, "ref", est.overall.age.only),
+         est.overall.age.comorbidities= ifelse(rel.age==65, "ref", est.overall.age.comorbidities),
+         est.male.age.only= ifelse(rel.age==65, "ref", est.male.age.only),
+         est.male.age.comorbidities= ifelse(rel.age==65, "ref", est.male.age.comorbidities),
+         est.female.age.only= ifelse(rel.age==65, "ref", est.female.age.only),
+         est.female.age.comorbidities= ifelse(rel.age==65, "ref", est.female.age.comorbidities)
+         )
+
+kable(est,
+      col.names = 
+        c("Age", 
+          "Age only model", 
+          "Age and comorbidity model", 
+          "Age only model", 
+          "Age and comorbidity model", 
+          "Age only model", 
+          "Age and comorbidity model")) %>%
+  add_header_above(c("", "Overall"=2,
+    "Male"=2  , "Female"=2))  %>%
+  add_header_above(c("Relative hazard ratios (95% CI) for age from models" = 7))  %>%
+  add_header_above(
+    c("From diagnosed with COVID-19 to death" = 7)) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered")) 
+
+
+```
+### Model parameters
+
+```{r}
+#overall- age only
+hr.overall.age.only<-data.frame(
+hr.est=exp(models.diagnosis.death$m.diagnosis.death.overall.quadratic.age.only$coefficients),
+hr.low=exp(confint(models.diagnosis.death$m.diagnosis.death.overall.quadratic.age.only))[,1],
+hr.high=exp(confint(models.diagnosis.death$m.diagnosis.death.overall.quadratic.age.only))[,2])
+hr.overall.age.only$var<-rownames(hr.overall.age.only)
+
+hr.overall.age.only<-hr.overall.age.only %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+#male- age and comorbidities
+hr.overall.age.comorbidities<-data.frame(
+hr.est=exp(models.diagnosis.death$m.diagnosis.death.overall.quadratic.age.comorbidities$coefficients),
+hr.low=exp(confint(models.diagnosis.death$m.diagnosis.death.overall.quadratic.age.comorbidities))[,1],
+hr.high=exp(confint(models.diagnosis.death$m.diagnosis.death.overall.quadratic.age.comorbidities))[,2])
+hr.overall.age.comorbidities$var<-rownames(hr.overall.age.comorbidities)
+
+hr.overall.age.comorbidities<-hr.overall.age.comorbidities %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+hr.overall.age.comorbidities<-hr.overall.age.comorbidities %>%
+  mutate(var=str_replace(var, "a_", "")) %>%
+  mutate(var=str_replace(var, "_", " ")) %>%
+  mutate(var=str_replace(var, "t2", "Type 2")) %>%
+  mutate(var=str_replace(var, "copd", "COPD"))  %>%
+  mutate(var=str_to_sentence(var))
+
+
+hr.male.age.only<-data.frame(
+hr.est=exp(models.diagnosis.death$m.diagnosis.death.male.quadratic.age.only$coefficients),
+hr.low=exp(confint(models.diagnosis.death$m.diagnosis.death.male.quadratic.age.only))[,1],
+hr.high=exp(confint(models.diagnosis.death$m.diagnosis.death.male.quadratic.age.only))[,2])
+hr.male.age.only$var<-rownames(hr.male.age.only)
+
+hr.male.age.only<-hr.male.age.only %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+#male- age and comorbidities
+hr.male.age.comorbidities<-data.frame(
+hr.est=exp(models.diagnosis.death$m.diagnosis.death.male.quadratic.age.comorbidities$coefficients),
+hr.low=exp(confint(models.diagnosis.death$m.diagnosis.death.male.quadratic.age.comorbidities))[,1],
+hr.high=exp(confint(models.diagnosis.death$m.diagnosis.death.male.quadratic.age.comorbidities))[,2])
+hr.male.age.comorbidities$var<-rownames(hr.male.age.comorbidities)
+
+hr.male.age.comorbidities<-hr.male.age.comorbidities %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+hr.male.age.comorbidities<-hr.male.age.comorbidities %>%
+  mutate(var=str_replace(var, "a_", "")) %>%
+  mutate(var=str_replace(var, "_", " ")) %>%
+  mutate(var=str_replace(var, "t2", "Type 2")) %>%
+  mutate(var=str_replace(var, "copd", "COPD"))  %>%
+  mutate(var=str_to_sentence(var))
+
+
+#female- age only
+hr.female.age.only<-data.frame(
+hr.est=exp(models.diagnosis.death$m.diagnosis.death.female.quadratic.age.only$coefficients),
+hr.low=exp(confint(models.diagnosis.death$m.diagnosis.death.female.quadratic.age.only))[,1],
+hr.high=exp(confint(models.diagnosis.death$m.diagnosis.death.female.quadratic.age.only))[,2])
+hr.female.age.only$var<-rownames(hr.female.age.only)
+
+hr.female.age.only<-hr.female.age.only %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+
+#female- age and comorbidities
+hr.female.age.comorbidities<-data.frame(
+hr.est=exp(models.diagnosis.death$m.diagnosis.death.female.quadratic.age.comorbidities$coefficients),
+hr.low=exp(confint(models.diagnosis.death$m.diagnosis.death.female.quadratic.age.comorbidities))[,1],
+hr.high=exp(confint(models.diagnosis.death$m.diagnosis.death.female.quadratic.age.comorbidities))[,2])
+hr.female.age.comorbidities$var<-rownames(hr.female.age.comorbidities)
+
+hr.female.age.comorbidities<-hr.female.age.comorbidities %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+hr.female.age.comorbidities<-hr.female.age.comorbidities %>%
+  mutate(var=str_replace(var, "a_", "")) %>%
+  mutate(var=str_replace(var, "_", " ")) %>%
+  mutate(var=str_replace(var, "t2", "Type 2")) %>%
+  mutate(var=str_replace(var, "copd", "COPD")) %>%
+  mutate(var=str_to_sentence(var))
+
+
+
+## combine
+
+hr<-hr.overall.age.only %>% mutate(var=str_to_sentence(var)) %>% 
+  rename(hr.overall.age.only=hr) %>% 
+  full_join(hr.overall.age.comorbidities %>% rename(hr.overall.age.comorbidities=hr) ,
+             by="var") %>% 
+  full_join(hr.male.age.only %>% mutate(var=str_to_sentence(var))  %>% rename(hr.male.age.only=hr) ,
+             by="var") %>% 
+  full_join(hr.male.age.comorbidities %>% rename(hr.male.age.comorbidities=hr) ,
+             by="var")  %>% 
+  full_join(hr.female.age.only %>% mutate(var=str_to_sentence(var))  %>% rename(hr.female.age.only=hr) ,
+             by="var") %>% 
+  full_join(hr.female.age.comorbidities %>% rename(hr.female.age.comorbidities=hr) ,
+             by="var") 
+  
+
+kable(hr,
+      col.names = c("", rep("Hazard ratio (95% CI)",6))) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered")) %>%
+  add_header_above(c(
+    "",
+    "Overall: age only",  "Overall: age and comorbidity", 
+    "Male: age only",  "Male: age and comorbidity", 
+    "Female: age only",  "Female: age and comorbidity" )) %>%
+  add_header_above(
+    c("From diagnosed with COVID-19 to death" = 7)) 
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Tansition 6: From hospitalised with COVID-19 to death 
+```{r}
+# models and relative hazards from models -----
+r.hazard<-get.r.hazard(model=models.hospitalised.death,
+                 age.1=65,
+                 age.2=seq(0,100, 1)) 
+
+```
+
+## Comparison of alternative models
+### Model fit
+```{r}
+fit<-rbind(
+# overall - age only
+r.hazard %>% 
+  filter(str_detect(model, ".overall")) %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="overall.age.only"),
+# overall - comorbidities
+r.hazard %>% 
+  filter(str_detect(model, ".overall")) %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="overall.comorbidities"),  
+  
+# male - age only
+r.hazard %>% 
+  filter(str_detect(model, "overall", negate=T)) %>% 
+  filter(str_detect(model, ".female", negate=T)) %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="male.age.only"),
+# male - comorbidities
+r.hazard %>% 
+  filter(str_detect(model, "overall", negate=T)) %>% 
+  filter(str_detect(model, ".female", negate=T)) %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="male.comorbidities"),
+# female - age only
+r.hazard %>% 
+  filter(str_detect(model, ".female")) %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="female.age.only"),
+# female - comorbidities
+r.hazard %>% 
+  filter(str_detect(model, ".female")) %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  select(model, aic, bic) %>% 
+  distinct() %>% 
+  mutate(bic=nice.num(bic)) %>% 
+  mutate(aic=nice.num(aic)) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>% 
+  select(type, aic, bic) %>% 
+  mutate(name="female.comorbidities"))
+
+fit<-fit %>%
+  pivot_wider(names_from = name, 
+              values_from = c(aic,bic)) 
+fit<-fit %>%
+  select(type ,       
+          aic_overall.age.only, bic_overall.age.only,
+          aic_overall.comorbidities,bic_overall.comorbidities,
+          aic_male.age.only, bic_male.age.only,
+          aic_male.comorbidities,bic_male.comorbidities,
+          aic_female.age.only, bic_female.age.only,
+          aic_female.comorbidities,bic_female.comorbidities)
+               
+
+kable(fit %>% 
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",      
+                            type)))), 
+      col.names = c("Type",  
+                    "AIC","BIC", 
+                    "AIC","BIC", 
+                    "AIC","BIC",
+                   "AIC","BIC",
+                   "AIC","BIC",
+                   "AIC","BIC"))  %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))  %>%
+  add_header_above( c("",
+    "Overall - age only" = 2,
+    "Overall - age and comorbidities" = 2,
+    "Male - age only" = 2,
+    "Male - age and comorbidities" = 2,
+    "Female - age only" = 2,
+    "Female - age and comorbidities" = 2))  %>%
+  add_header_above(
+    c("Fit from alternative appoaches to modelling age" = 13))%>%
+  add_header_above(
+    c("From general population to diagnosed with COVID-19" = 13))
+```
+
+### Relative hazard ratios
+```{r}
+# oveall age only
+r.hazard %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, "overall")) %>%  
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: Overall - from age only model",
+              subtitle = "Reference age: 65")
+  
+
+# overall age and comorbidities
+r.hazard %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, "overall")) %>%  
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: Overall - from age and comorbidity model",
+              subtitle = "Reference age: 65")
+
+
+
+# male age only
+r.hazard %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, "overall", negate=T)) %>%  
+  filter(str_detect(model, ".female", negate=T)) %>%  
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: Male - from age only model",
+              subtitle = "Reference age: 65")
+  
+
+# male age and comorbidities
+r.hazard %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, "overall", negate=T)) %>%  
+  filter(str_detect(model, ".female", negate=T)) %>%  
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: Male - from age and comorbidity model",
+              subtitle = "Reference age: 65")
+
+
+
+
+
+# female age only
+r.hazard %>% 
+  filter(str_detect(model, ".age.only")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, ".female")) %>%   
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: female - from age only model",
+              subtitle = "Reference age: 65")
+  
+
+# female age and comorbidities
+r.hazard %>% 
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  mutate(type=str_extract(model, paste(c("linear", "quadratic", "rcs3", "rcs4", "rcs5"), collapse="|"))) %>%
+  mutate(type=ifelse(type=="rcs3",
+                           "restricted cubic spline (3 knots)",
+                     ifelse(type=="rcs4",
+                            "restricted cubic spline (4 knots)",
+                      ifelse(type=="rcs5",
+                            "restricted cubic spline (5 knots)",  
+                            type)))) %>% 
+  mutate(type=str_to_sentence(type)) %>% 
+  filter(str_detect(model, ".female")) %>%  
+   ggplot(aes(group=type))+
+  facet_wrap(.~type+
+               paste0("AIC:", nice.num(aic),", ", 
+                     "BIC:",nice.num(bic)), ncol=2) +
+  geom_line(aes(rel.age, hr))+
+  geom_line(aes(rel.age, hr.low), linetype=2)+
+  geom_line(aes(rel.age, hr.high), linetype=2)+ 
+  ylim(0,NA)+
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+    legend.title = element_blank(),
+        axis.text=element_text(size=8),
+        axis.title=element_text(size=10,face="bold"),
+        strip.text = element_text(size=8, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7")
+        ) +
+  ylab("Relative hazard ratio")+
+  xlab("Age") + 
+  labs(title = "Relative hazard ratios: female - from age and comorbidity model",
+              subtitle = "Reference age: 65")
+
+  
+```
+
+
+## Summary of selected models
+Quadratic.
+
+### Relative hazard ratios from selected models
+```{r}
+est<-
+r.hazard %>% 
+  filter(str_detect(model, "overall")) %>%  
+  filter(str_detect(model, "age.only")) %>% 
+  filter(str_detect(model,"quadratic")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.overall.age.only=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>% 
+  select(rel.age, est.overall.age.only) %>% 
+  left_join(
+r.hazard %>% 
+  filter(str_detect(model, "overall")) %>%  
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  filter(str_detect(model,"quadratic")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.overall.age.comorbidities=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>%  
+  select(rel.age, est.overall.age.comorbidities)) %>% 
+left_join(  
+  r.hazard %>% 
+  filter(str_detect(model, "overall", negate=T)) %>%  
+  filter(str_detect(model, ".female", negate=T)) %>%
+  filter(str_detect(model, "age.only")) %>% 
+  filter(str_detect(model,"quadratic")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.male.age.only=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>% 
+  select(rel.age, est.male.age.only)) %>% 
+  left_join(
+r.hazard %>% 
+  filter(str_detect(model, "overall", negate=T)) %>%  
+  filter(str_detect(model, ".female", negate=T)) %>%
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  filter(str_detect(model,"quadratic")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.male.age.comorbidities=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>% 
+  select(rel.age, est.male.age.comorbidities)) %>% 
+  left_join(
+r.hazard %>% 
+  filter(str_detect(model, ".female")) %>%
+  filter(str_detect(model, "age.only")) %>% 
+  filter(str_detect(model,"quadratic")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.female.age.only=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>% 
+  select(rel.age, est.female.age.only)) %>% 
+  left_join(
+r.hazard %>% 
+  filter(str_detect(model, ".female")) %>%
+  filter(str_detect(model, "age.comorbidities")) %>% 
+  filter(str_detect(model,"quadratic")) %>% 
+  filter(rel.age %in% seq(20,95,5))  %>% 
+  mutate(est.female.age.comorbidities=paste0(nice.num2(hr), " (",
+         nice.num2(hr.low), " to ",
+         nice.num2(hr.high), ")"
+           )) %>% 
+  select(rel.age, est.female.age.comorbidities))
+  
+
+est<-est %>% 
+  mutate(est.overall.age.only= ifelse(rel.age==65, "ref", est.overall.age.only),
+         est.overall.age.comorbidities= ifelse(rel.age==65, "ref", est.overall.age.comorbidities),
+         est.male.age.only= ifelse(rel.age==65, "ref", est.male.age.only),
+         est.male.age.comorbidities= ifelse(rel.age==65, "ref", est.male.age.comorbidities),
+         est.female.age.only= ifelse(rel.age==65, "ref", est.female.age.only),
+         est.female.age.comorbidities= ifelse(rel.age==65, "ref", est.female.age.comorbidities)
+         )
+
+kable(est,
+      col.names = 
+        c("Age", 
+          "Age only model", 
+          "Age and comorbidity model", 
+          "Age only model", 
+          "Age and comorbidity model", 
+          "Age only model", 
+          "Age and comorbidity model")) %>%
+  add_header_above(c("", "Overall"=2,
+    "Male"=2  , "Female"=2))  %>%
+  add_header_above(c("Relative hazard ratios (95% CI) for age from models" = 7))  %>%
+  add_header_above(
+    c("From hospitalised with COVID-19 to death" = 7)) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered")) 
+
+
+```
+### Model parameters
+
+```{r}
+#overall- age only
+hr.overall.age.only<-data.frame(
+hr.est=exp(models.hospitalised.death$m.hospitalised.death.overall.quadratic.age.only$coefficients),
+hr.low=exp(confint(models.hospitalised.death$m.hospitalised.death.overall.quadratic.age.only))[,1],
+hr.high=exp(confint(models.hospitalised.death$m.hospitalised.death.overall.quadratic.age.only))[,2])
+hr.overall.age.only$var<-rownames(hr.overall.age.only)
+
+hr.overall.age.only<-hr.overall.age.only %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+#male- age and comorbidities
+hr.overall.age.comorbidities<-data.frame(
+hr.est=exp(models.hospitalised.death$m.hospitalised.death.overall.quadratic.age.comorbidities$coefficients),
+hr.low=exp(confint(models.hospitalised.death$m.hospitalised.death.overall.quadratic.age.comorbidities))[,1],
+hr.high=exp(confint(models.hospitalised.death$m.hospitalised.death.overall.quadratic.age.comorbidities))[,2])
+hr.overall.age.comorbidities$var<-rownames(hr.overall.age.comorbidities)
+
+hr.overall.age.comorbidities<-hr.overall.age.comorbidities %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+hr.overall.age.comorbidities<-hr.overall.age.comorbidities %>%
+  mutate(var=str_replace(var, "a_", "")) %>%
+  mutate(var=str_replace(var, "_", " ")) %>%
+  mutate(var=str_replace(var, "t2", "Type 2")) %>%
+  mutate(var=str_replace(var, "copd", "COPD"))  %>%
+  mutate(var=str_to_sentence(var))
+
+
+hr.male.age.only<-data.frame(
+hr.est=exp(models.hospitalised.death$m.hospitalised.death.male.quadratic.age.only$coefficients),
+hr.low=exp(confint(models.hospitalised.death$m.hospitalised.death.male.quadratic.age.only))[,1],
+hr.high=exp(confint(models.hospitalised.death$m.hospitalised.death.male.quadratic.age.only))[,2])
+hr.male.age.only$var<-rownames(hr.male.age.only)
+
+hr.male.age.only<-hr.male.age.only %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+#male- age and comorbidities
+hr.male.age.comorbidities<-data.frame(
+hr.est=exp(models.hospitalised.death$m.hospitalised.death.male.quadratic.age.comorbidities$coefficients),
+hr.low=exp(confint(models.hospitalised.death$m.hospitalised.death.male.quadratic.age.comorbidities))[,1],
+hr.high=exp(confint(models.hospitalised.death$m.hospitalised.death.male.quadratic.age.comorbidities))[,2])
+hr.male.age.comorbidities$var<-rownames(hr.male.age.comorbidities)
+
+hr.male.age.comorbidities<-hr.male.age.comorbidities %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+hr.male.age.comorbidities<-hr.male.age.comorbidities %>%
+  mutate(var=str_replace(var, "a_", "")) %>%
+  mutate(var=str_replace(var, "_", " ")) %>%
+  mutate(var=str_replace(var, "t2", "Type 2")) %>%
+  mutate(var=str_replace(var, "copd", "COPD"))  %>%
+  mutate(var=str_to_sentence(var))
+
+
+#female- age only
+hr.female.age.only<-data.frame(
+hr.est=exp(models.hospitalised.death$m.hospitalised.death.female.quadratic.age.only$coefficients),
+hr.low=exp(confint(models.hospitalised.death$m.hospitalised.death.female.quadratic.age.only))[,1],
+hr.high=exp(confint(models.hospitalised.death$m.hospitalised.death.female.quadratic.age.only))[,2])
+hr.female.age.only$var<-rownames(hr.female.age.only)
+
+hr.female.age.only<-hr.female.age.only %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+
+#female- age and comorbidities
+hr.female.age.comorbidities<-data.frame(
+hr.est=exp(models.hospitalised.death$m.hospitalised.death.female.quadratic.age.comorbidities$coefficients),
+hr.low=exp(confint(models.hospitalised.death$m.hospitalised.death.female.quadratic.age.comorbidities))[,1],
+hr.high=exp(confint(models.hospitalised.death$m.hospitalised.death.female.quadratic.age.comorbidities))[,2])
+hr.female.age.comorbidities$var<-rownames(hr.female.age.comorbidities)
+
+hr.female.age.comorbidities<-hr.female.age.comorbidities %>%
+  mutate(hr=paste0(nice.num2(hr.est),
+                   " (",
+                   nice.num2(hr.low), " to ",
+                   nice.num2(hr.high), ")")) %>%
+  select(var, hr)
+
+hr.female.age.comorbidities<-hr.female.age.comorbidities %>%
+  mutate(var=str_replace(var, "a_", "")) %>%
+  mutate(var=str_replace(var, "_", " ")) %>%
+  mutate(var=str_replace(var, "t2", "Type 2")) %>%
+  mutate(var=str_replace(var, "copd", "COPD")) %>%
+  mutate(var=str_to_sentence(var))
+
+
+
+## combine
+
+hr<-hr.overall.age.only %>% mutate(var=str_to_sentence(var)) %>% 
+  rename(hr.overall.age.only=hr) %>% 
+  full_join(hr.overall.age.comorbidities %>% rename(hr.overall.age.comorbidities=hr) ,
+             by="var") %>% 
+  full_join(hr.male.age.only %>% mutate(var=str_to_sentence(var))  %>% rename(hr.male.age.only=hr) ,
+             by="var") %>% 
+  full_join(hr.male.age.comorbidities %>% rename(hr.male.age.comorbidities=hr) ,
+             by="var")  %>% 
+  full_join(hr.female.age.only %>% mutate(var=str_to_sentence(var))  %>% rename(hr.female.age.only=hr) ,
+             by="var") %>% 
+  full_join(hr.female.age.comorbidities %>% rename(hr.female.age.comorbidities=hr) ,
+             by="var") 
+  
+
+kable(hr,
+      col.names = c("", rep("Hazard ratio (95% CI)",6))) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered")) %>%
+  add_header_above(c(
+    "",
+    "Overall: age only",  "Overall: age and comorbidity", 
+    "Male: age only",  "Male: age and comorbidity", 
+    "Female: age only",  "Female: age and comorbidity" )) %>%
+  add_header_above(
+    c("From hospitalised with COVID-19 to death" = 7)) 
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Relative hazards from selected models
+
+```{r}
+
+plot.data<-rbind(
+   get.r.hazard(model=list(models.healthy.diagnosis$m.healthy.diagnosis.overall.rcs5.age.only),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From general population to diagnosed with COVID-19",
+         gender="Overall",
+         model="Unadjusted"), 
+  get.r.hazard(model=list(models.healthy.diagnosis$m.healthy.diagnosis.overall.rcs5.age.comorbidities),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From general population to diagnosed with COVID-19",
+         gender="Overall",
+         model="Adjusted for comorbidities"),
+  get.r.hazard(model=list(models.healthy.diagnosis$m.healthy.diagnosis.male.rcs5.age.only),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From general population to diagnosed with COVID-19",
+         gender="Male",
+         model="Unadjusted"), 
+  get.r.hazard(model=list(models.healthy.diagnosis$m.healthy.diagnosis.male.rcs5.age.comorbidities),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From general population to diagnosed with COVID-19",
+         gender="Male",
+         model="Adjusted for comorbidities"),
+    get.r.hazard(model=list(models.healthy.diagnosis$m.healthy.diagnosis.female.rcs5.age.only),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From general population to diagnosed with COVID-19",
+         gender="Female",
+         model="Unadjusted"), 
+  get.r.hazard(model=list(models.healthy.diagnosis$m.healthy.diagnosis.female.rcs5.age.comorbidities),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From general population to diagnosed with COVID-19",
+         gender="Female",
+         model="Adjusted for comorbidities"),
+  #
+    get.r.hazard(model=list(models.healthy.hospitalised$m.healthy.hospitalised.overall.quadratic.age.only),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From general population to hospitalised with COVID-19",
+         gender="Overall",
+         model="Unadjusted"), 
+  get.r.hazard(model=list(models.healthy.hospitalised$m.healthy.hospitalised.overall.quadratic.age.comorbidities),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From general population to hospitalised with COVID-19",
+         gender="Overall",
+         model="Adjusted for comorbidities"),
+    get.r.hazard(model=list(models.healthy.hospitalised$m.healthy.hospitalised.male.quadratic.age.only),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From general population to hospitalised with COVID-19",
+         gender="Male",
+         model="Unadjusted"), 
+  get.r.hazard(model=list(models.healthy.hospitalised$m.healthy.hospitalised.male.quadratic.age.comorbidities),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From general population to hospitalised with COVID-19",
+         gender="Male",
+         model="Adjusted for comorbidities"),
+    get.r.hazard(model=list(models.healthy.hospitalised$m.healthy.hospitalised.female.quadratic.age.only),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From general population to hospitalised with COVID-19",
+         gender="Female",
+         model="Unadjusted"), 
+  get.r.hazard(model=list(models.healthy.hospitalised$m.healthy.hospitalised.female.quadratic.age.comorbidities),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From general population to hospitalised with COVID-19",
+         gender="Female",
+         model="Adjusted for comorbidities"),
+  #
+    get.r.hazard(model=list(models.diagnosis.hospitalised$m.diagnosis.hospitalised.overall.rcs5.age.only),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From diagnosed with COVID-19 to hospitalised with COVID-19",
+         gender="Overall",
+         model="Unadjusted"), 
+  get.r.hazard(model=list(models.diagnosis.hospitalised$m.diagnosis.hospitalised.overall.rcs5.age.comorbidities),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From diagnosed with COVID-19 to hospitalised with COVID-19",
+         gender="Overall",
+         model="Adjusted for comorbidities"),
+    get.r.hazard(model=list(models.diagnosis.hospitalised$m.diagnosis.hospitalised.male.rcs5.age.only),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From diagnosed with COVID-19 to hospitalised with COVID-19",
+         gender="Male",
+         model="Unadjusted"), 
+  get.r.hazard(model=list(models.diagnosis.hospitalised$m.diagnosis.hospitalised.male.rcs5.age.comorbidities),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From diagnosed with COVID-19 to hospitalised with COVID-19",
+         gender="Male",
+         model="Adjusted for comorbidities"),
+    get.r.hazard(model=list(models.diagnosis.hospitalised$m.diagnosis.hospitalised.male.rcs5.age.only),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From diagnosed with COVID-19 to hospitalised with COVID-19",
+         gender="Female",
+         model="Unadjusted"), 
+  get.r.hazard(model=list(models.diagnosis.hospitalised$m.diagnosis.hospitalised.female.rcs5.age.comorbidities),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From diagnosed with COVID-19 to hospitalised with COVID-19",
+         gender="Female",
+         model="Adjusted for comorbidities"),
+  #
+        get.r.hazard(model=list(models.diagnosis.death$m.diagnosis.death.overall.quadratic.age.only),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From diagnosed with COVID-19 to death",
+         gender="Overall",
+         model="Unadjusted"), 
+  get.r.hazard(model=list(models.diagnosis.death$m.diagnosis.death.overall.quadratic.age.comorbidities),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From diagnosed with COVID-19 to death",
+         gender="Overall",
+         model="Adjusted for comorbidities"),
+      get.r.hazard(model=list(models.diagnosis.death$m.diagnosis.death.male.quadratic.age.only),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From diagnosed with COVID-19 to death",
+         gender="Male",
+         model="Unadjusted"), 
+  get.r.hazard(model=list(models.diagnosis.death$m.diagnosis.death.male.quadratic.age.comorbidities),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From diagnosed with COVID-19 to death",
+         gender="Male",
+         model="Adjusted for comorbidities"),
+    get.r.hazard(model=list(models.diagnosis.death$m.diagnosis.death.female.quadratic.age.only),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From diagnosed with COVID-19 to death",
+         gender="Female",
+         model="Unadjusted"), 
+  get.r.hazard(model=list(models.diagnosis.death$m.diagnosis.death.female.quadratic.age.comorbidities),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From diagnosed with COVID-19 to death",
+         gender="Female",
+         model="Adjusted for comorbidities"),
+    #
+    get.r.hazard(model=list(models.hospitalised.death$m.hospitalised.death.overall.quadratic.age.only),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From hospitalised with COVID-19 to death",
+         gender="Overall",
+         model="Unadjusted"), 
+  get.r.hazard(model=list(models.hospitalised.death$m.hospitalised.death.overall.quadratic.age.comorbidities),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From hospitalised with COVID-19 to death",
+         gender="Overall",
+         model="Adjusted for comorbidities"),
+      get.r.hazard(model=list(models.hospitalised.death$m.hospitalised.death.male.quadratic.age.only),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From hospitalised with COVID-19 to death",
+         gender="Male",
+         model="Unadjusted"), 
+  get.r.hazard(model=list(models.hospitalised.death$m.hospitalised.death.male.quadratic.age.comorbidities),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From hospitalised with COVID-19 to death",
+         gender="Male",
+         model="Adjusted for comorbidities"),
+    get.r.hazard(model=list(models.hospitalised.death$m.hospitalised.death.female.quadratic.age.only),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From hospitalised with COVID-19 to death",
+         gender="Female",
+         model="Unadjusted"), 
+  get.r.hazard(model=list(models.hospitalised.death$m.hospitalised.death.female.quadratic.age.comorbidities),
+                 age.1=65,
+                 age.2=seq(0,100, 1))%>% 
+  select(hr,hr.low, hr.high,rel.age) %>%
+  mutate(trans="From hospitalised with COVID-19 to death",
+         gender="Female",
+         model="Adjusted for comorbidities")
+  )
+
+
+ plot.data<-plot.data %>% 
+   mutate(trans=factor(trans,
+                      levels=c("From general population to diagnosed with COVID-19",
+                               "From general population to hospitalised with COVID-19",
+                               "From general population to death",
+                               "From diagnosed with COVID-19 to hospitalised with COVID-19",
+                              "From diagnosed with COVID-19 to death",
+                               "From hospitalised with COVID-19 to death"
+                               )))  %>%
+  mutate(gender=factor(str_to_sentence(gender),
+                       levels=c("Overall","Male", "Female"))) %>% 
+   mutate(model=factor(model,
+                       levels=c("Unadjusted", "Adjusted for comorbidities")))
+
+plot.data$trans<-plyr::revalue(plot.data$trans, c("From general population to diagnosed with COVID-19"=
+                                     "From general\npopulation\nto diagnosed\nwith COVID-19", 
+                                   "From general population to hospitalised with COVID-19"=
+                                     "From general\npopulation\nto hospitalised\nwith COVID-19",
+                                   "From general population to death"=
+                                     "From general\npopulation\nto death",
+                                   "From diagnosed with COVID-19 to hospitalised with COVID-19"=
+                                     "From diagnosed\nwith COVID-19\nto hospitalised\nwith COVID-19",
+                                   "From diagnosed with COVID-19 to death"=
+                                   "From diagnosed\nwith COVID-19\nto death",
+                                   "From hospitalised with COVID-19 to death"=
+                                     "From hospitalised\nwith COVID-19\nto death")) 
+
+
+
+# overall
+gg.rel.hazards.age.overall<-plot.data %>% 
+  filter(gender=="Overall") %>% 
+  ggplot(aes(group=model, colour=model))+
+  facet_grid(trans~., scales ="free_y", switch="y")+
+  geom_line(aes(rel.age, hr), size=1) +
+  geom_line(aes(rel.age,hr.low), linetype=2, size=1)+
+  geom_line(aes(rel.age,hr.high), linetype=2, size=1)+
+  scale_y_continuous(limits=c(0,NA),
+                     position = "right")+
+  scale_colour_manual(values=c("#FF0000","#3B9AB2"))+
+  geom_hline(yintercept = 1, colour = "#000000", 
+             linetype=2) +
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        legend.text =element_text(size=12),
+        axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"),
+        strip.text = element_text(size=12, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7"),
+        strip.text.y.left = element_text(angle = 0)) +
+  ylab("Relative\nhazard ratio\n")+
+  xlab("\nAge")+
+  labs(title = "Relative hazard ratios for age and risk\nof transitions. Reference age: 65")
+
+ggsave( "rel.hazards.age.overall.png",gg.rel.hazards.age.overall,
+        dpi=300,
+        width = 7, height = 12)
+
+include_graphics("rel.hazards.age.overall.png")
+
+
+# overall, male, female
+
+gg.rel.hazards.age<-plot.data %>% 
+  ggplot(aes(group=paste(gender,model), colour=model))+
+  facet_grid(trans~gender, scales ="free_y", switch="y")+
+  geom_line(aes(rel.age, hr), size=1) +
+  geom_line(aes(rel.age,hr.low), linetype=2, size=1)+
+  geom_line(aes(rel.age,hr.high), linetype=2, size=1)+
+  scale_y_continuous(limits=c(0,NA),
+                     position = "right")+
+  scale_colour_manual(values=c("#FF0000","#3B9AB2"))+
+  geom_hline(yintercept = 1, colour = "#000000", 
+             linetype=2) +
+  theme_bw() +
+  theme(panel.spacing = unit(0, "lines"),
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        legend.text =element_text(size=12),
+        axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"),
+        strip.text = element_text(size=12, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7"),
+        strip.text.y.left = element_text(angle = 0)) +
+  ylab("Relative\nhazard ratio\n")+
+  xlab("\nAge")+
+  labs(title = "Relative hazard ratios for age and risk of transitions. Reference age: 65")
+
+ggsave( "rel.hazards.age.png",gg.rel.hazards.age,
+        dpi=300,
+        width = 9, height = 12)
+
+include_graphics("rel.hazards.age.png")
+
+```
