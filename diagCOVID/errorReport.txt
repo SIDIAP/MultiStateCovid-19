@@ -1,0 +1,33 @@
+DBMS:
+postgresql
+
+Error:
+org.postgresql.util.PSQLException: ERROR: schema "results20" does not exist
+  Position: 14
+
+SQL:
+CREATE TABLE results20.CovidMultiStateCohorts (
+	cohort_definition_id INT,
+	subject_id BIGINT,
+	cohort_start_date DATE,
+	cohort_end_date DATE
+	)
+
+R version:
+R version 4.0.0 (2020-04-24)
+
+Platform:
+x86_64-w64-mingw32
+
+Attached base packages:
+- stats
+- graphics
+- grDevices
+- utils
+- datasets
+- methods
+- base
+
+Other attached packages:
+- diagCOVID (0.0.1)
+- DatabaseConnector (2.4.4)

@@ -1,0 +1,15 @@
+atlasId,atlasName,cohortId,name
+339,[MultiStateCovid] COVID-19 diagnosis 2020,339,[MultiStateCovid] COVID-19 diagnosis 2020
+340,[MultiStateCovid] COVID-19 hospitalisation 2020,340,[MultiStateCovid] COVID-19 hospitalisation 2020
+344,[MultiStateCovid] COVID-19 positive test 2020,344,[MultiStateCovid] COVID-19 positive test 2020
+303,[MultiStateCovid] Mortality 2020,303,[MultiStateCovid] Mortality 2020
+331,[MultiStateCovid] Autoimmune condition,331,[MultiStateCovid] Autoimmune condition
+337,[MultiStateCovid] Chronic kidney disease - single diagnosis,337,[MultiStateCovid] Chronic kidney disease - single diagnosis
+333,[MultiStateCovid] COPD,333,[MultiStateCovid] COPD
+334,[MultiStateCovid] Dementia,334,[MultiStateCovid] Dementia
+315,[MultiStateCovid] Heart disease,315,[MultiStateCovid] Heart disease
+316,[MultiStateCovid] Hyperlipidemia,316,[MultiStateCovid] Hyperlipidemia
+312,[MultiStateCovid] Hypertension,312,[MultiStateCovid] Hypertension
+319,[MultiStateCovid] Malignant neoplasm excluding non-melanoma skin cancer,319,[MultiStateCovid] Malignant neoplasm excluding non-melanoma skin cancer
+336,[MultiStateCovid] Type 2 Diabetes Mellitus,336,[MultiStateCovid] Type 2 Diabetes Mellitus
+345,"[MultiStateCovid] Obesity, latest event before 1st March 2020",345,"[MultiStateCovid] Obesity, latest event before 1st March 2020"
