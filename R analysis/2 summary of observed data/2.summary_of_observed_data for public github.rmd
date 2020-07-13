@@ -1,0 +1,4029 @@
+---
+title: 'Descriptive stats'
+output:
+  html_document:
+    code_folding: hide
+    highlight: tango
+    theme: united
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+editor_options:
+  chunk_output_type: console
+---
+
+```{r options, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE, comment = FALSE,
+                      cache.lazy=FALSE)
+options(scipen=999)
+```
+
+```{r packages}
+# packages -----
+library(dplyr)
+#library(bshazard)
+library(ggplot2)
+library(tidyverse)
+library(ggalt)
+library(survminer)
+library(ggridges)
+library(tableone)
+library(kableExtra)
+library(stringr)
+library(scales)
+library(knitr)
+library(survminer)
+#library(ggcorrplot)
+library(cmprsk)
+```
+ 
+```{r data, include=FALSE}
+load("C:/Users/eburn/Documents/OHDSI results/covid multistate/working data.RData")
+
+```
+
+```{r functions}
+nice.num<-function(x){
+  prettyNum(x, big.mark=",", nsmall = 0, digits=0,scientific = FALSE)}
+nice.num2<-function(x){
+  prettyNum(x, big.mark=",", nsmall = 2, digits=2,scientific = FALSE)}
+
+```
+
+## Table 1: Patient characteristics 
+Patient characteristics by state (general population) or transition (from general population, diagnosed with COVID-19, and hospitalised with COVID-19)
+```{r, cache=TRUE}
+table1.data<-rbind(  
+# all those in general population
+  r.healthy.diagnosis%>% 
+    mutate(group="General population"), 
+# all those who transition from general population to diagnosed
+  r.healthy.diagnosis%>% 
+    filter(status==1) %>% 
+    mutate(group="From general population to diagnosed with COVID-19"),
+# all those who transition from general population to hospitalised
+  r.healthy.hospitalised%>% 
+    filter(status==1) %>% 
+    mutate(group="From general population to hospitalised with COVID-19"), 
+# all those who transition from diagnosed to hospitalised
+  r.diagnosis.hospitalised %>% 
+    filter(status==1) %>% 
+    mutate(group="From diagnosed with COVID-19 to hospitalised with COVID-19"), 
+# all those who transition from hospitalised to death
+  r.hospitalised.death %>% 
+    filter(status==1) %>% 
+    mutate(group="From hospitalised with COVID-19 to death"), 
+# # all those who transition from general population to death
+ r.healthy.death %>%
+   filter(status==1) %>%
+   mutate(group="From general population to death"),
+# all those who transition from diagnosed to death
+ r.diagnosis.death %>% 
+   filter(status==1) %>% 
+   mutate(group="From diagnosed with COVID-19 to death")) %>% 
+   mutate(group=factor(group,
+                      levels=c("General population",
+                               "From general population to diagnosed with COVID-19",
+                               "From general population to hospitalised with COVID-19",
+                                "From general population to death",
+                               "From diagnosed with COVID-19 to hospitalised with COVID-19",
+                               "From diagnosed with COVID-19 to death",
+                               "From hospitalised with COVID-19 to death"
+                               ))) %>%
+  mutate(gender=factor(gender,
+                       levels=c("Male", "Female")))
+
+
+# variables for table 1
+vars<-c("age",
+        "age_gr",
+        "gender",
+        "charlson",
+        # components of charlson
+        "Myocardial_infarction",
+        "Congestive_heart_failure",
+        "Peripheral_vascular_disease",
+        "Cerebrovascular_disease",
+        "Dementia",
+        "Chronic_pulmonary_disease",
+        "Rheumatologic_disease",
+        "Peptic_ulcer_disease",
+        "Mild_liver_disease",
+        "Diabetes_with_chronic_complications",
+        "Hemoplegia_or_paralegia",
+        "Renal_disease",
+        "Any_malignancy",
+        "Moderate_to_severe_liver_disease",
+        "Metastatic_solid_tumor",
+        "AIDS",
+        # atlas cohorts
+        "a_autoimmune_condition",
+         "a_chronic_kidney_disease",
+         "a_copd",
+         "a_dementia",
+         "a_heart_disease",
+         "a_hyperlipidemia",
+         "a_hypertension",
+         "a_malignant_neoplasm",
+         "a_obesity.5y",
+         "a_t2_diabetes")
+
+factor.vars<- c("age_gr",
+                "gender",
+                "charlson",
+                "Myocardial_infarction",
+                "Congestive_heart_failure",
+                "Peripheral_vascular_disease",
+                "Cerebrovascular_disease",
+                "Dementia",
+                "Chronic_pulmonary_disease",
+                "Rheumatologic_disease",
+                "Peptic_ulcer_disease",
+                "Mild_liver_disease",
+                "Diabetes_with_chronic_complications",
+                "Hemoplegia_or_paralegia",
+                "Renal_disease",
+                "Any_malignancy",
+                "Moderate_to_severe_liver_disease",
+                "Metastatic_solid_tumor",
+                "AIDS",
+                "a_autoimmune_condition",
+         "a_chronic_kidney_disease",
+         "a_copd",
+         "a_dementia",
+         "a_heart_disease",
+         "a_hyperlipidemia",
+         "a_hypertension",
+         "a_malignant_neoplasm",
+        "a_obesity.5y",
+         "a_t2_diabetes" )
+
+summary.characteristics<-print(CreateTableOne(
+  vars =  vars,
+  factorVars = factor.vars,
+  includeNA=T,
+  data = table1.data,
+  strata=c("group"),
+  test = F), 
+  showAllLevels=F,smd=F,
+  nonnormal = vars, #all 
+  noSpaces = TRUE,
+  contDigits = 1,
+  printToggle=FALSE)
+
+
+# format numbers (eg commas etc)  
+# functionality does not seem to be in tableone package
+# so do this manually
+for(i in 1:ncol(summary.characteristics)) {
+# tidy up 
+  cur_column <- summary.characteristics[, i]
+  cur_column <- str_extract(cur_column, '[0-9.]+\\b') %>% 
+                as.numeric() 
+  cur_column <-nice.num(cur_column)
+  # add back in
+  summary.characteristics[, i] <- str_replace(string=summary.characteristics[, i], 
+                              pattern='[0-9.]+\\b', 
+                              replacement=cur_column)    
+}
+
+# names
+#rownames(summary.characteristics)
+
+rownames(summary.characteristics)<-str_replace(rownames(summary.characteristics), "charlson", "charlson comorbidity index")
+rownames(summary.characteristics)<-str_replace(rownames(summary.characteristics), "obesity.5y", "obesity")
+rownames(summary.characteristics)<-str_replace(rownames(summary.characteristics), " = 1", "")
+rownames(summary.characteristics)<-str_replace(rownames(summary.characteristics), "a_", "")
+rownames(summary.characteristics)<-str_replace(rownames(summary.characteristics) , "_", " ")
+rownames(summary.characteristics)<-str_replace(rownames(summary.characteristics) , "_", " ")
+rownames(summary.characteristics)<-str_replace(rownames(summary.characteristics) , "t2", "Type 2")
+rownames(summary.characteristics)<-str_replace(rownames(summary.characteristics) , "copd", "COPD")
+rownames(summary.characteristics)<-str_to_sentence(rownames(summary.characteristics))
+
+
+```
+
+
+```{r}
+# obscure any counts less than 5
+summary.characteristics<-apply(summary.characteristics, 2, 
+                     function(x) 
+                       ifelse(str_sub(x, 1, 2) %in%  c("0 ", "1 ","2 ", "3 ","4 "),
+              "<5",x))
+
+
+kable(summary.characteristics, 
+      col.names = c("General population",  
+                    "To diagnosed with COVID-19",
+                    "To hospitalised with COVID-19",
+                    "To death",
+                    "To hospitalised with COVID-19",
+                    "To death",
+                    "To death"))  %>%
+  add_header_above(c(" "=1,
+                     "From general population"= 3, 
+                     "From diagnosed with COVID-19"= 2, 
+                      "From hospitalised with COVID-19"= 1)) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered")) %>%
+  pack_rows("Components of Charlson Comorbidity Index", 16, 32) %>%
+  pack_rows("Other conditions of interest", 33, 41)
+```
+
+## Figure 1: Age and gender histogram
+As above, by state/ transition, transition 3 (general pop to death omitted as not of primary interest)
+
+
+```{r}
+
+plot.data<-table1.data
+# to split across lines
+plot.data$group<-plyr::revalue(plot.data$group, c("From general population to diagnosed with COVID-19"=
+                                     "From general population\nto diagnosed with COVID-19", 
+                                   "From general population to hospitalised with COVID-19"=
+                                     "From general population\nto hospitalised with COVID-19",
+                                   "From general population to death"=
+                                     "From general population\nto death",
+                                   "From diagnosed with COVID-19 to hospitalised with COVID-19"=
+                                     "From diagnosed with COVID-19\nto hospitalised with COVID-19",
+                                   "From diagnosed with COVID-19 to death"=
+                                   "From diagnosed with COVID-19\nto death",
+                                   "From hospitalised with COVID-19 to death"=
+                                     "From hospitalised with COVID-19\nto death")) 
+#Mirrored
+plot.data.male<-plot.data %>% 
+  filter(gender=="Male") %>% 
+  filter(group!="From general population\nto death")
+plot.data.female<-plot.data %>%
+  filter(gender=="Female") %>% 
+  filter(group!="From general population\nto death")
+
+
+dat_text <- data.frame(
+  label = c("Female", "Male"),
+  group   = factor(c("General population","General population")),
+  x     = c(75,75),
+  y     = c(-0.04, 0.035)
+)
+
+
+histogram3<-ggplot() + 
+  geom_histogram(data=plot.data.male ,
+                 aes(x=age, y=..density..),
+                 colour="black", 
+                 binwidth = 4, boundary = 0,
+                 fill="#F21A00")+
+  geom_histogram(aes(x=age, y=-..density..),
+                 colour="black", 
+                 binwidth = 4, boundary = 0,
+                 data=plot.data.female,
+                 fill="#3B9AB2")+
+coord_flip()+
+  facet_wrap(group ~.)+
+  theme_bw()+
+  scale_y_continuous(breaks=c(-0.1,-0.05, 0,0.05,0.1))+
+  xlim(0,104)+
+  geom_label(
+    data    = dat_text,
+    mapping = aes(x = x,
+                  y = y, label = label),
+    size=5)+
+  theme(legend.title = element_blank(),
+        axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"),
+        strip.text = element_text(size=12, face="bold"),
+        strip.background = element_rect( fill="#f7f7f7"),
+        legend.text=element_text(size=14),
+        legend.position="top") +
+  ylab("Density")+
+  xlab("Age")
+
+
+ggsave( "histogram3.png",histogram3,
+        dpi=300,
+        width = 11, height = 7)
+
+include_graphics("histogram3.png")
+```
+
+
+## Figure 2: Conditions by age group and state/ tranistion
+
+```{r}
+
+a<-table1.data %>% 
+  group_by(gender, group) %>% 
+  add_tally() %>% 
+  group_by(gender, group, n) %>% 
+  summarise(a_autoimmune_condition=sum(a_autoimmune_condition==1),
+           a_chronic_kidney_disease =sum(a_chronic_kidney_disease==1),
+           a_copd =sum(a_copd==1),
+           a_dementia =sum(a_dementia==1),
+           a_heart_disease =sum(a_heart_disease==1),
+          a_hyperlipidemia  =sum(a_hyperlipidemia==1),
+           a_hypertension =sum(a_hypertension==1),
+          a_malignant_neoplasm = sum(a_malignant_neoplasm==1),
+          a_obesity.5y = sum(a_obesity.5y==1),
+         a_t2_diabetes  =sum(a_t2_diabetes==1)) %>% 
+  mutate(
+   a_autoimmune_condition=a_autoimmune_condition/n,
+           a_chronic_kidney_disease =a_chronic_kidney_disease/n,
+           a_copd =a_copd/n,
+           a_dementia =a_dementia/n,
+           a_heart_disease =a_heart_disease/n,
+          a_hyperlipidemia  =a_hyperlipidemia/n,
+           a_hypertension =a_hypertension/n,
+          a_malignant_neoplasm = a_malignant_neoplasm/n,
+          a_obesity.5y = a_obesity.5y/n,
+          a_t2_diabetes = a_t2_diabetes/n) %>% 
+   pivot_longer(
+   cols = starts_with("a_"),
+   names_to = "var",
+   values_to = "prop",
+   values_drop_na = TRUE)
+
+a$group<-plyr::revalue(a$group, c("From general population to diagnosed with COVID-19"=
+                                     "From general\npopulation to\ndiagnosed with\nCOVID-19", 
+                                   "From general population to hospitalised with COVID-19"=
+                                     "From general\npopulation\nto hospitalised\nwith COVID-19",
+                                   "From general population to death"=
+                                     "From general\npopulation\nto death",
+                                   "From diagnosed with COVID-19 to hospitalised with COVID-19"=
+                                     "From diagnosed\nwith COVID-19\nto hospitalised\nwith COVID-19",
+                                   "From diagnosed with COVID-19 to death"=
+                                   "From diagnosed\nwith COVID-19\nto death",
+                                   "From hospitalised with COVID-19 to death"=
+                                     "From hospitalised\nwith COVID-19\nto death")) 
+
+```
+
+
+```{r, width="250%"}
+
+gg.conditions2<-
+  a %>% 
+    mutate(var.name=
+             ifelse(
+      var=="a_autoimmune_condition",
+    "Autoimmune condition",
+    ifelse(
+      var=="a_chronic_kidney_disease",
+    "Chronic kidney disease",
+               ifelse(
+      var=="a_copd",
+    "COPD",
+                 ifelse(
+      var=="a_dementia",
+    "Dementia",
+                 ifelse(
+      var=="a_heart_disease",
+    "Heart disease",
+                 ifelse(
+      var=="a_hyperlipidemia",
+    "Hyperlipidemia",
+                 ifelse(
+      var=="a_hypertension",
+    "Hypertension",
+                 ifelse(
+      var=="a_malignant_neoplasm",
+    "Malignant neoplasm",
+      ifelse(
+      var=="a_obesity.5y",
+    "Obesity",
+                 ifelse(
+      var=="a_t2_diabetes",
+    "Type 2 Diabetes Mellitus",NA    ))))))))))) %>% 
+  filter(group!="From general\npopulation\nto death") %>% 
+  ggplot()+
+  facet_grid(gender~group, switch="y")+
+  geom_bar(aes(var, prop, fill=var.name), 
+           width = 1, colour="grey",
+           stat="identity", position=position_dodge())+
+  theme_minimal() +
+  scale_y_continuous( breaks=c(0.1,0.2,0.3,0.4, 0.5, 0.6),
+                     limits=c(-0.075,0.6))+
+    scale_fill_manual(values = c("#a6cee3","#1f78b4","#b2df8a","#33a02c",
+"#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6", "#6a3d9a"))+ 
+   theme(panel.spacing = unit(0, "lines"),
+        legend.title = element_blank(),
+        strip.text = element_text(size=10, face="bold"),
+         panel.grid.major.x = element_blank() ,
+     axis.text.x = element_blank(),
+   axis.title = element_blank(),
+   axis.text.y = element_blank(),
+         axis.ticks.y = element_blank(),
+   strip.text.y.left = element_text(angle = 0),
+   legend.position = "bottom" ) +
+  geom_text(x = 3, y = 0.3,
+            size=3,
+            label = "30%")+
+  geom_text(x = 4, y = 0.6,
+            size=3,
+            label = "60%")+
+  coord_polar(start = 0)
+  
+
+ggsave("conditions2.png",gg.conditions2,
+        dpi=300,
+        width = 12, height = 7)
+
+include_graphics("conditions2.png")
+
+
+```
+
+## Table 2: Transitions
+```{r}
+# events
+events<-rbind(
+  # overall
+  r %>% 
+  group_by(trans) %>% 
+  add_tally() %>% 
+  group_by(trans, n) %>%  
+  summarise(events=sum(status),
+            time.0=min(time),
+            time.25=quantile(time, probs =0.25),
+            time.50=quantile(time, probs =0.5),
+            time.75=quantile(time, probs =0.75),
+            time.1=max(time)) %>% 
+  mutate(time=paste0(time.50, " (", time.0, ", ", time.25, " to ", time.75, ", ", time.1, ")")) %>% 
+  mutate(group="all") %>% 
+  mutate(level="all") %>% 
+  select(trans, group,level, n, time, events),
+  # by age_gr
+  r %>% 
+  group_by(trans, age_gr) %>% 
+  add_tally() %>% 
+  group_by(trans, n, age_gr) %>%  
+  summarise(events=sum(status),
+            time.0=min(time),
+            time.25=quantile(time, probs =0.25),
+            time.50=quantile(time, probs =0.5),
+            time.75=quantile(time, probs =0.75),
+            time.1=max(time))%>% 
+    mutate(age_gr = factor(age_gr, levels = c("Under 18","18 to 39", "40 to 59", "60 to 69",
+                                        "70 to 79", "80 or older"))) %>% 
+    arrange(trans, age_gr)  %>% 
+  mutate(time=paste0(time.50, " (", time.0, ", ", time.25, " to ", time.75, ", ", time.1, ")")) %>% 
+  mutate(group="Age") %>% 
+  mutate(level=age_gr) %>% 
+  select(trans, group,level, n, time, events),
+  # by gender
+  r %>% 
+    group_by(trans, gender) %>% 
+    add_tally() %>% 
+    group_by(trans, n, gender) %>%  
+    summarise(events=sum(status),
+              time.0=min(time),
+              time.25=quantile(time, probs =0.25),
+              time.50=quantile(time, probs =0.5),
+              time.75=quantile(time, probs =0.75),
+              time.1=max(time))%>% 
+    mutate(gender = factor(gender, levels = c("Male", "Female"))) %>% 
+    arrange(trans, gender)   %>% 
+    mutate(time=paste0(time.50, " (", time.0, ", ", time.25, " to ", time.75, ", ", time.1, ")")) %>% 
+    mutate(group="Sex") %>% 
+    mutate(level=gender) %>% 
+    select(trans, group,level, n, time, events),
+  # by charlson
+  r %>% 
+    group_by(trans, charlson) %>% 
+    add_tally() %>% 
+    group_by(trans, n, charlson) %>%  
+    summarise(events=sum(status),
+              time.0=min(time),
+              time.25=quantile(time, probs =0.25),
+              time.50=quantile(time, probs =0.5),
+              time.75=quantile(time, probs =0.75),
+              time.1=max(time))%>% 
+    mutate(charlson = factor(charlson, levels = c("0", "1", "2", "3+"))) %>% 
+    arrange(trans, charlson)  %>% 
+    mutate(time=paste0(time.50, " (", time.0, ", ", time.25, " to ", time.75, ", ", time.1, ")")) %>% 
+    mutate(group="Charlson") %>% 
+    mutate(level=charlson) %>% 
+    select(trans, group,level, n, time, events),
+  # by a_autoimmune_condition
+  r %>% 
+    group_by(trans, a_autoimmune_condition) %>% 
+    add_tally() %>% 
+    group_by(trans, n, a_autoimmune_condition) %>%  
+    summarise(events=sum(status),
+              time.0=min(time),
+              time.25=quantile(time, probs =0.25),
+              time.50=quantile(time, probs =0.5),
+              time.75=quantile(time, probs =0.75),
+              time.1=max(time))%>% 
+    mutate(a_autoimmune_condition = factor(a_autoimmune_condition, levels = c("0", "1"))) %>% 
+    arrange(trans, a_autoimmune_condition)  %>% 
+    mutate(time=paste0(time.50, " (", time.0, ", ", time.25, " to ", time.75, ", ", time.1, ")")) %>% 
+    mutate(group="Autoimmune condition") %>% 
+    mutate(level=a_autoimmune_condition) %>% 
+    select(trans, group,level, n, time, events),
+  
+  # by a_chronic_kidney_disease
+  r %>% 
+    group_by(trans, a_chronic_kidney_disease) %>% 
+    add_tally() %>% 
+    group_by(trans, n, a_chronic_kidney_disease) %>%  
+    summarise(events=sum(status),
+              time.0=min(time),
+              time.25=quantile(time, probs =0.25),
+              time.50=quantile(time, probs =0.5),
+              time.75=quantile(time, probs =0.75),
+              time.1=max(time))%>% 
+    mutate(a_chronic_kidney_disease = factor(a_chronic_kidney_disease, levels = c("0", "1"))) %>% 
+    arrange(trans, a_chronic_kidney_disease)  %>% 
+    mutate(time=paste0(time.50, " (", time.0, ", ", time.25, " to ", time.75, ", ", time.1, ")")) %>% 
+    mutate(group="Chronic kidney disease") %>% 
+    mutate(level=a_chronic_kidney_disease) %>% 
+    select(trans, group,level, n, time, events),
+    # by a_copd
+  r %>% 
+    group_by(trans, a_copd) %>% 
+    add_tally() %>% 
+    group_by(trans, n, a_copd) %>%  
+    summarise(events=sum(status),
+              time.0=min(time),
+              time.25=quantile(time, probs =0.25),
+              time.50=quantile(time, probs =0.5),
+              time.75=quantile(time, probs =0.75),
+              time.1=max(time))%>% 
+    mutate(a_copd = factor(a_copd, levels = c("0", "1"))) %>% 
+    arrange(trans, a_copd)  %>% 
+    mutate(time=paste0(time.50, " (", time.0, ", ", time.25, " to ", time.75, ", ", time.1, ")")) %>% 
+    mutate(group="COPD") %>% 
+    mutate(level=a_copd) %>% 
+    select(trans, group,level, n, time, events),
+  # by a_dementia
+  r %>% 
+    group_by(trans, a_dementia) %>% 
+    add_tally() %>% 
+    group_by(trans, n, a_dementia) %>%  
+    summarise(events=sum(status),
+              time.0=min(time),
+              time.25=quantile(time, probs =0.25),
+              time.50=quantile(time, probs =0.5),
+              time.75=quantile(time, probs =0.75),
+              time.1=max(time))%>% 
+    mutate(a_dementia = factor(a_dementia, levels = c("0", "1"))) %>% 
+    arrange(trans, a_dementia)  %>% 
+    mutate(time=paste0(time.50, " (", time.0, ", ", time.25, " to ", time.75, ", ", time.1, ")")) %>% 
+    mutate(group="Dementia") %>% 
+    mutate(level=a_dementia) %>% 
+    select(trans, group,level, n, time, events),
+    # by a_heart_disease
+  r %>% 
+    group_by(trans, a_heart_disease) %>% 
+    add_tally() %>% 
+    group_by(trans, n, a_heart_disease) %>%  
+    summarise(events=sum(status),
+              time.0=min(time),
+              time.25=quantile(time, probs =0.25),
+              time.50=quantile(time, probs =0.5),
+              time.75=quantile(time, probs =0.75),
+              time.1=max(time))%>% 
+    mutate(a_heart_disease = factor(a_heart_disease, levels = c("0", "1"))) %>% 
+    arrange(trans, a_heart_disease)  %>% 
+    mutate(time=paste0(time.50, " (", time.0, ", ", time.25, " to ", time.75, ", ", time.1, ")")) %>% 
+    mutate(group="Heart disease") %>% 
+    mutate(level=a_heart_disease) %>% 
+    select(trans, group,level, n, time, events),
+    # by a_hyperlipidemia
+  r %>% 
+    group_by(trans, a_hyperlipidemia) %>% 
+    add_tally() %>% 
+    group_by(trans, n, a_hyperlipidemia) %>%  
+    summarise(events=sum(status),
+              time.0=min(time),
+              time.25=quantile(time, probs =0.25),
+              time.50=quantile(time, probs =0.5),
+              time.75=quantile(time, probs =0.75),
+              time.1=max(time))%>% 
+    mutate(a_hyperlipidemia = factor(a_hyperlipidemia, levels = c("0", "1"))) %>% 
+    arrange(trans, a_hyperlipidemia)  %>% 
+    mutate(time=paste0(time.50, " (", time.0, ", ", time.25, " to ", time.75, ", ", time.1, ")")) %>% 
+    mutate(group="Hyperlipidemia") %>% 
+    mutate(level=a_hyperlipidemia) %>% 
+    select(trans, group,level, n, time, events),
+    # by a_malignant_neoplasm
+  r %>% 
+    group_by(trans, a_malignant_neoplasm) %>% 
+    add_tally() %>% 
+    group_by(trans, n, a_malignant_neoplasm) %>%  
+    summarise(events=sum(status),
+              time.0=min(time),
+              time.25=quantile(time, probs =0.25),
+              time.50=quantile(time, probs =0.5),
+              time.75=quantile(time, probs =0.75),
+              time.1=max(time))%>% 
+    mutate(a_malignant_neoplasm = factor(a_malignant_neoplasm, levels = c("0", "1"))) %>% 
+    arrange(trans, a_malignant_neoplasm)  %>% 
+    mutate(time=paste0(time.50, " (", time.0, ", ", time.25, " to ", time.75, ", ", time.1, ")")) %>% 
+    mutate(group="Malignant neoplasm") %>% 
+    mutate(level=a_malignant_neoplasm) %>% 
+    select(trans, group,level, n, time, events),
+    # by a_obesity.5y
+  r %>% 
+    group_by(trans, a_obesity.5y) %>% 
+    add_tally() %>% 
+    group_by(trans, n, a_obesity.5y) %>%  
+    summarise(events=sum(status),
+              time.0=min(time),
+              time.25=quantile(time, probs =0.25),
+              time.50=quantile(time, probs =0.5),
+              time.75=quantile(time, probs =0.75),
+              time.1=max(time))%>% 
+    mutate(a_obesity.5y = factor(a_obesity.5y, levels = c("0", "1"))) %>% 
+    arrange(trans, a_obesity.5y)  %>% 
+    mutate(time=paste0(time.50, " (", time.0, ", ", time.25, " to ", time.75, ", ", time.1, ")")) %>% 
+    mutate(group="Obesity") %>% 
+    mutate(level=a_obesity.5y) %>% 
+    select(trans, group,level, n, time, events),
+    # by a_t2_diabetes
+  r %>% 
+    group_by(trans, a_t2_diabetes) %>% 
+    add_tally() %>% 
+    group_by(trans, n, a_t2_diabetes) %>%  
+    summarise(events=sum(status),
+              time.0=min(time),
+              time.25=quantile(time, probs =0.25),
+              time.50=quantile(time, probs =0.5),
+              time.75=quantile(time, probs =0.75),
+              time.1=max(time))%>% 
+    mutate(a_t2_diabetes = factor(a_t2_diabetes, levels = c("0", "1"))) %>% 
+    arrange(trans, a_t2_diabetes)  %>% 
+    mutate(time=paste0(time.50, " (", time.0, ", ", time.25, " to ", time.75, ", ", time.1, ")")) %>% 
+    mutate(group="Type 2 diabetes") %>% 
+    mutate(level=a_t2_diabetes) %>% 
+    select(trans, group,level, n, time, events)
+  
+  
+  )
+  
+# format numbers
+events$n<-nice.num(events$n)
+events$events<-nice.num(events$events)
+
+# order by transition
+events<-events %>% 
+  arrange(trans)
+
+```
+
+```{r, cache=TRUE}
+# factors for covid.data ----
+covid.data$age_gr <- factor(covid.data$age_gr, 
+                   levels = c("Under 18","18 to 39", "40 to 59", "60 to 69",
+                                        "70 to 79", "80 or older"))
+covid.data$gender <- factor(covid.data$gender, 
+                   levels = c("Male", "Female"))
+
+covid.data$charlson <- factor(covid.data$charlson, 
+                   levels = c("0", "1", "2", "3+"))
+
+
+
+
+# get 67 day cumualative incidence for initial transitions -----
+events.t1_t3<-events %>% 
+  filter(trans %in% c(1:3))
+
+#cuminc 
+c.inc_fit<-list()
+
+#overall
+c.inc_fit[["overall"]] <- cuminc(ftime = covid.data$healthy_c.time, 
+              fstatus = covid.data$healthy_c.event)
+
+#by groups
+groups<-c("age_gr", "gender", 
+          "charlson",
+          "a_autoimmune_condition",
+          "a_chronic_kidney_disease", "a_copd",
+          "a_dementia","a_heart_disease","a_hyperlipidemia",
+          "a_hypertension", "a_malignant_neoplasm",
+          "a_obesity.5y","a_t2_diabetes")
+
+
+
+
+for(i in 1:length(groups)){
+ message(paste0("Working on ", i, " of ", length(groups)))
+   c.inc_fit[[groups[i]]]<- cuminc(ftime = covid.data$healthy_c.time,  
+              fstatus = covid.data$healthy_c.event, 
+            group = covid.data[[groups[i]]]) 
+}
+
+# extract estimates at 67 days
+tp<-list()
+tp[["overall"]]<-timepoints(c.inc_fit[["overall"]],67)$est
+
+for(i in 1:length(groups)){
+   tp[[groups[i]]]<- timepoints(c.inc_fit[[groups[i]]],67)$est
+
+}
+
+t1<-data.frame( 
+  trans=1,
+  group=c("all", rep("Age",6), 
+          rep("Sex",2), 
+          rep("Charlson",4),
+          rep("Autoimmune condition",2),
+          rep("Chronic kidney disease",2),
+          rep("COPD",2),
+          rep("Dementia",2),
+          rep("Heart disease",2),
+          rep("Hyperlipidemia",2),
+          rep("Malignant neoplasm",2),
+          rep("Obesity",2),
+          rep("Type 2 diabetes",2)
+          ),
+   level=c("all",
+           levels(covid.data$age_gr),
+           levels(covid.data$gender),
+           levels(covid.data$charlson),
+           "0", "1","0", "1","0", "1","0", "1","0", "1","0", "1",
+           "0", "1","0", "1","0", "1"),
+est=c(
+tp$overall[1],
+tp$age_gr[1:6],
+tp$gender[1:2],
+tp$charlson[1:4],
+tp$a_autoimmune_condition[1:2],
+tp$a_chronic_kidney_disease[1:2],
+tp$a_copd[1:2],
+tp$a_dementia[1:2],
+tp$a_heart_disease[1:2],
+tp$a_hyperlipidemia[1:2],
+tp$a_malignant_neoplasm[1:2],
+tp$a_obesity.5y[1:2],
+tp$a_t2_diabetes[1:2]
+))
+
+t2<-data.frame( 
+  trans=2,
+  group=c("all", rep("Age",6), 
+          rep("Sex",2), 
+          rep("Charlson",4),
+          rep("Autoimmune condition",2),
+          rep("Chronic kidney disease",2),
+          rep("COPD",2),
+          rep("Dementia",2),
+          rep("Heart disease",2),
+          rep("Hyperlipidemia",2),
+          rep("Malignant neoplasm",2),
+          rep("Obesity",2),
+          rep("Type 2 diabetes",2)
+          ),
+   level=c("all",
+           levels(covid.data$age_gr),
+           levels(covid.data$gender),
+           levels(covid.data$charlson),
+           "0", "1","0", "1","0", "1","0", "1","0", "1","0", "1",
+           "0", "1","0", "1","0", "1"),
+est=c(
+tp$overall[2],
+tp$age_gr[7:12],
+tp$gender[3:4],
+tp$charlson[5:8],
+tp$a_autoimmune_condition[3:4],
+tp$a_chronic_kidney_disease[3:4],
+tp$a_copd[3:4],
+tp$a_dementia[3:4],
+tp$a_heart_disease[3:4],
+tp$a_hyperlipidemia[3:4],
+tp$a_malignant_neoplasm[3:4],
+tp$a_obesity.5y[3:4],
+tp$a_t2_diabetes[3:4]
+))
+
+t3<-data.frame( 
+  trans=3,
+   group=c("all", rep("Age",6), 
+          rep("Sex",2), 
+          rep("Charlson",4),
+          rep("Autoimmune condition",2),
+          rep("Chronic kidney disease",2),
+          rep("COPD",2),
+          rep("Dementia",2),
+          rep("Heart disease",2),
+          rep("Hyperlipidemia",2),
+          rep("Malignant neoplasm",2),
+          rep("Obesity",2),
+          rep("Type 2 diabetes",2)
+          ),
+   level=c("all",
+           levels(covid.data$age_gr),
+           levels(covid.data$gender),
+           levels(covid.data$charlson),
+           "0", "1","0", "1","0", "1","0", "1","0", "1","0", "1",
+           "0", "1","0", "1","0", "1"),
+est=c(
+tp$overall[3],
+tp$age_gr[13:18],
+tp$gender[5:6],
+tp$charlson[9:12],
+tp$a_autoimmune_condition[5:6],
+tp$a_chronic_kidney_disease[5:6],
+tp$a_copd[5:6],
+tp$a_dementia[5:6],
+tp$a_heart_disease[5:6],
+tp$a_hyperlipidemia[5:6],
+tp$a_malignant_neoplasm[5:6],
+tp$a_obesity.5y[5:6],
+tp$a_t2_diabetes[5:6]
+))
+
+est<-rbind(t1,t2,t3)
+
+
+# add to table
+events.t1_t3<-events.t1_t3 %>% 
+  left_join(est,
+            by = c("trans","group", "level"))
+# format number
+events.t1_t3<-events.t1_t3 %>% 
+  mutate(est=paste0(nice.num2(est*100), "%"))
+
+# pivot wide- transitions on same row
+events.t1_t3.wide<-events.t1_t3 %>% 
+  pivot_wider(names_from = trans,
+    values_from = c(events, est)) 
+
+# formatting
+events.t1_t3.wide<-events.t1_t3.wide %>% 
+  mutate(events_diag.general.pop=paste0(events_1, " (", est_1, ")")) %>% 
+  mutate(events_hosp.general.pop=paste0(events_2, " (", est_2, ")")) %>% 
+  mutate(events_death.general.pop=paste0(events_3, " (", est_3, ")")) %>% 
+  select(group, level, n, time, events_diag.general.pop, events_hosp.general.pop, events_death.general.pop) %>% 
+  rename( n.general.pop=n,
+          time.general.pop=time)
+
+```
+
+```{r,cache=TRUE}
+# get 45 day cumualative incidence for transitions from diagnosis ----
+events.t4_t5<-events %>% 
+  filter(trans %in% c(4:5))
+
+
+#cuminc 
+c.inc_fit<-list()
+
+quiet <- function(x) {
+  sink(tempfile())
+  on.exit(sink())
+  invisible(force(x))
+} 
+# use quiet to suppress message about missing values (we only want pop for specific state, others are missing)
+
+
+#overall
+c.inc_fit[["overall"]] <- quiet(cuminc(ftime = covid.data$diagnosis_c.time, 
+              fstatus = covid.data$diagnosis_c.event))
+
+#by groups
+groups<-c("age_gr", "gender", 
+          "charlson",
+          "a_autoimmune_condition",
+          "a_chronic_kidney_disease", "a_copd",
+          "a_dementia","a_heart_disease","a_hyperlipidemia",
+          "a_hypertension", "a_malignant_neoplasm",
+          "a_obesity.5y","a_t2_diabetes")
+
+
+
+
+for(i in 1:length(groups)){
+ message(paste0("Working on ", i, " of ", length(groups)))
+   c.inc_fit[[groups[i]]]<- quiet(cuminc(ftime = covid.data$diagnosis_c.time,  
+              fstatus = covid.data$diagnosis_c.event, 
+            group = covid.data[[groups[i]]]) )
+  
+}
+
+
+
+
+# extract estimates at 45 days
+tp<-list()
+tp[["overall"]]<-timepoints(c.inc_fit[["overall"]],45)$est
+
+for(i in 1:length(groups)){
+   tp[[groups[i]]]<- timepoints(c.inc_fit[[groups[i]]],45)$est
+
+}
+
+t1<-data.frame( 
+  trans=4,
+  group=c("all", rep("Age",6), 
+          rep("Sex",2), 
+          rep("Charlson",4),
+          rep("Autoimmune condition",2),
+          rep("Chronic kidney disease",2),
+          rep("COPD",2),
+          rep("Dementia",2),
+          rep("Heart disease",2),
+          rep("Hyperlipidemia",2),
+          rep("Malignant neoplasm",2),
+          rep("Obesity",2),
+          rep("Type 2 diabetes",2)
+          ),
+   level=c("all",
+           levels(covid.data$age_gr),
+           levels(covid.data$gender),
+           levels(covid.data$charlson),
+           "0", "1","0", "1","0", "1","0", "1","0", "1","0", "1",
+           "0", "1","0", "1","0", "1"),
+est=c(
+tp$overall[1],
+tp$age_gr[1:6],
+tp$gender[1:2],
+tp$charlson[1:4],
+tp$a_autoimmune_condition[1:2],
+tp$a_chronic_kidney_disease[1:2],
+tp$a_copd[1:2],
+tp$a_dementia[1:2],
+tp$a_heart_disease[1:2],
+tp$a_hyperlipidemia[1:2],
+tp$a_malignant_neoplasm[1:2],
+tp$a_obesity.5y[1:2],
+tp$a_t2_diabetes[1:2]
+))
+
+t2<-data.frame( 
+  trans=5,
+  group=c("all", rep("Age",6), 
+          rep("Sex",2), 
+          rep("Charlson",4),
+          rep("Autoimmune condition",2),
+          rep("Chronic kidney disease",2),
+          rep("COPD",2),
+          rep("Dementia",2),
+          rep("Heart disease",2),
+          rep("Hyperlipidemia",2),
+          rep("Malignant neoplasm",2),
+          rep("Obesity",2),
+          rep("Type 2 diabetes",2)
+          ),
+   level=c("all",
+           levels(covid.data$age_gr),
+           levels(covid.data$gender),
+           levels(covid.data$charlson),
+           "0", "1","0", "1","0", "1","0", "1","0", "1","0", "1",
+           "0", "1","0", "1","0", "1"),
+est=c(
+tp$overall[2],
+tp$age_gr[7:12],
+tp$gender[3:4],
+tp$charlson[5:8],
+tp$a_autoimmune_condition[3:4],
+tp$a_chronic_kidney_disease[3:4],
+tp$a_copd[3:4],
+tp$a_dementia[3:4],
+tp$a_heart_disease[3:4],
+tp$a_hyperlipidemia[3:4],
+tp$a_malignant_neoplasm[3:4],
+tp$a_obesity.5y[3:4],
+tp$a_t2_diabetes[3:4]
+))
+
+est<-rbind(t1,t2)
+##
+
+
+
+# add to table
+events.t4_t5<-events.t4_t5 %>% 
+  left_join(est,
+            by = c("trans","group", "level"))
+# format numbers
+events.t4_t5<-events.t4_t5 %>% 
+  mutate(est=paste0(nice.num2(est*100), "%"))
+# pivot wide
+events.t4_t5.wide<-events.t4_t5 %>% 
+  pivot_wider(names_from = trans,
+    values_from = c(events, est))
+
+events.t4_t5.wide<-events.t4_t5.wide %>% 
+  mutate(events_hosp.diag=paste0(events_4, " (", est_4, ")")) %>% 
+  mutate(events_death.diag=paste0(events_5, " (", est_5, ")")) %>% 
+  select(group, level, n, time, events_hosp.diag, events_death.diag) %>% 
+  rename(n.diag=n,
+        time.diagn=time)
+
+```
+
+
+
+```{r, cache=TRUE}
+# get 45 days cumualative incidence for transition from hospitalised ----
+events.t6<-events %>% 
+  filter(trans %in% c(6))
+
+#cuminc 
+c.inc_fit<-list()
+
+quiet <- function(x) {
+  sink(tempfile())
+  on.exit(sink())
+  invisible(force(x))
+} 
+# use quiet to suppress message about missing values (we only want pop for specific state, others are missing)
+
+
+#overall
+c.inc_fit[["overall"]] <- quiet(cuminc(ftime = r.hospitalised.death$time, 
+              fstatus = r.hospitalised.death$status))
+
+#by groups
+groups<-c("age_gr", "gender", 
+          "charlson",
+          "a_autoimmune_condition",
+          "a_chronic_kidney_disease", "a_copd",
+          "a_dementia","a_heart_disease","a_hyperlipidemia",
+          "a_hypertension", "a_malignant_neoplasm",
+          "a_obesity.5y","a_t2_diabetes")
+
+
+
+
+for(i in 1:length(groups)){
+ message(paste0("Working on ", i, " of ", length(groups)))
+   c.inc_fit[[groups[i]]]<- quiet(cuminc(ftime = r.hospitalised.death$time,  
+              fstatus = r.hospitalised.death$status, 
+            group = r.hospitalised.death[[groups[i]]]) )
+  
+}
+
+
+# extract estimates at 45 days
+tp<-list()
+tp[["overall"]]<-timepoints(c.inc_fit[["overall"]],45)$est
+
+for(i in 1:length(groups)){
+   tp[[groups[i]]]<- timepoints(c.inc_fit[[groups[i]]],45)$est
+
+}
+
+t1<-data.frame( 
+  trans=6,
+  group=c("all", rep("Age",6), 
+          rep("Sex",2), 
+          rep("Charlson",4),
+          rep("Autoimmune condition",2),
+          rep("Chronic kidney disease",2),
+          rep("COPD",2),
+          rep("Dementia",2),
+          rep("Heart disease",2),
+          rep("Hyperlipidemia",2),
+          rep("Malignant neoplasm",2),
+          rep("Obesity",2),
+          rep("Type 2 diabetes",2)
+          ),
+   level=c("all",
+           levels(covid.data$age_gr),
+           levels(covid.data$gender),
+           levels(covid.data$charlson),
+           "0", "1","0", "1","0", "1","0", "1","0", "1","0", "1",
+           "0", "1","0", "1","0", "1"),
+est=c(
+tp$overall[1],
+tp$age_gr[1:6],
+tp$gender[1:2],
+tp$charlson[1:4],
+tp$a_autoimmune_condition[1:2],
+tp$a_chronic_kidney_disease[1:2],
+tp$a_copd[1:2],
+tp$a_dementia[1:2],
+tp$a_heart_disease[1:2],
+tp$a_hyperlipidemia[1:2],
+tp$a_malignant_neoplasm[1:2],
+tp$a_obesity.5y[1:2],
+tp$a_t2_diabetes[1:2]
+))
+
+
+# add to table
+events.t6<-events.t6 %>% 
+  left_join(t1,
+            by = c("trans","group", "level"))
+# format number
+events.t6<-events.t6 %>% 
+  mutate(est=paste0(nice.num2(est*100), "%"))
+
+# pivot wide for consistency in names etc
+events.t6.wide<-events.t6 %>% 
+  pivot_wider(names_from = trans,
+    values_from = c(events, est))
+
+events.t6.wide<-events.t6.wide %>% 
+  mutate(events_death.hosp=paste0(events_6, " (", est_6, ")")) %>% 
+  select(group, level, n, time, events_death.hosp) %>% 
+  rename(n.hosp=n,
+        time.hosp=time)
+
+```
+
+
+```{r}
+
+a<-events.t1_t3.wide  %>% 
+  left_join(events.t4_t5.wide) %>% 
+  left_join(events.t6.wide)
+
+
+# obscure any counts less than 5
+b<-apply(a, 2, 
+                     function(x) 
+                       ifelse(str_sub(x, 1, 2) %in%  c("0 ", "1 ","2 ", "3 ","4 "),
+              "<5",x))
+
+
+kable(a, 
+      col.names = c("", "",
+                    "n",
+                    "Median (min, interquartile range, max)",
+                    "Events (cumulative incidence at 67 days)",
+                    "Events (cumulative incidence at 67 days)",  	
+                    "Events (cumulative incidence at 67 days",
+                    "n",
+                    "Median (min, interquartile range, max)",
+                    "Events (cumulative incidence at 45 days)",
+                    "Events (cumulative incidence at 45 days)",  
+                    "n",
+                    "Median (min, interquartile range, max)",
+                    "Events (cumulative incidence at 45 days)"))  %>%
+  add_header_above(c(" " = 3, 
+                     "Follow-up in days",
+                    "To diagnosis with COVID-19",
+                    "To hospitalised with COVID-19",  	
+                    "To death",
+                    " ",
+                    "Follow-up in days",
+                    "To hospitalised with COVID-19",  	
+                    "To death",
+                    " ",
+                    "Follow-up in days", 	
+                    "To death"))%>%
+  add_header_above(c(" " = 2, "From general population" = 5,
+                     "From diagnosed with COVID-19" = 4,
+                     "From hospitalised with COVID-19" = 3)) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered")) 
+
+
+```
+
+
+
+
+
+## Transition 1: From general population to diagnosed with COVID-19 
+## overall
+```{r}
+survfit.t1<-survfit(Surv(time, status) ~ 1, 
+                 data = r.healthy.diagnosis)
+ggsurvplot.event<-ggsurvplot(survfit.t1, fun = "event", palette="black", conf.int =TRUE)
+ggsurvplot.event$plot<-ggsurvplot.event$plot+ coord_cartesian(xlim = c(NA,67))+
+  theme(legend.position = "none")
+
+ggsave( "ggsurv.t1.png",print(ggsurvplot.event),
+        dpi=300,
+        width = 6, height = 5)
+include_graphics("ggsurv.t1.png")
+
+
+
+```
+
+
+```{r}
+survfit.t1<-survfit(Surv(time, status) ~ 1, 
+                 data = r.healthy.diagnosis)
+ggsurvplot.event<-ggsurvplot(survfit.t1, fun = "event", conf.int =TRUE)
+
+
+at.risk.t1<-ggsurvplot(survfit.t1, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t1, 
+      col.names = c("Date",  "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By gender
+```{r}
+survfit.t1.gender<-survfit(Surv(time, status) ~ gender, 
+                 data = r.healthy.diagnosis)
+ggsurvplot.event<-ggsurvplot(survfit.t1.gender, fun = "event", conf.int =TRUE)
+ggsurvplot.event$plot<-ggsurvplot.event$plot+ coord_cartesian(xlim = c(NA,67))+
+  theme(legend.title = element_blank())
+ggsurvplot.cloglog<-ggsurvplot(survfit.t1.gender, fun = "cloglog", conf.int =TRUE)
+ggsurvplot.cloglog$plot<-ggsurvplot.cloglog$plot+ coord_cartesian(xlim = c(NA,67))+
+  theme(legend.position = "none") 
+  
+
+ggsurv.t1.gender<- list(
+  ggsurvplot.event,
+  ggsurvplot.cloglog)
+ggsurv.t1.gender <-arrange_ggsurvplots(ggsurv.t1.gender, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t1.gender.png",ggsurv.t1.gender,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t1.gender.png")
+
+
+
+```
+
+```{r}
+at.risk.t1.gender<-ggsurvplot(survfit.t1.gender, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t1.gender, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By age
+```{r}
+survfit.t1.age_gr<-survfit(Surv(time, status) ~ age_gr, 
+                 data = r.healthy.diagnosis)
+ggsurv.t1.age_gr<- list(
+  ggsurvplot(survfit.t1.age_gr, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t1.age_gr, fun = "cloglog", conf.int =TRUE))
+ggsurv.t1.age_gr <-arrange_ggsurvplots(ggsurv.t1.age_gr, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t1.age_gr.png",ggsurv.t1.age_gr,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t1.age_gr.png")
+```
+
+```{r}
+at.risk.t1.age_gr<-ggsurvplot(survfit.t1.age_gr, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t1.age_gr, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By charlson
+```{r}
+survfit.t1.charlson<-survfit(Surv(time, status) ~ charlson, 
+                 data = r.healthy.diagnosis)
+ggsurv.t1.charlson<- list(
+  ggsurvplot(survfit.t1.charlson, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t1.charlson, fun = "cloglog", conf.int =TRUE))
+ggsurv.t1.charlson <-arrange_ggsurvplots(ggsurv.t1.charlson, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t1.charlson.png",ggsurv.t1.charlson,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t1.charlson.png")
+```
+
+```{r}
+at.risk.t1.charlson<-ggsurvplot(survfit.t1.charlson, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t1.charlson, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By a_autoimmune_condition
+```{r}
+survfit.t1.a_autoimmune_condition<-survfit(Surv(time, status) ~ a_autoimmune_condition, 
+                 data = r.healthy.diagnosis)
+ggsurv.t1.a_autoimmune_condition<- list(
+  ggsurvplot(survfit.t1.a_autoimmune_condition, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t1.a_autoimmune_condition, fun = "cloglog", conf.int =TRUE))
+ggsurv.t1.a_autoimmune_condition <-arrange_ggsurvplots(ggsurv.t1.a_autoimmune_condition, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t1.a_autoimmune_condition.png",ggsurv.t1.a_autoimmune_condition,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t1.a_autoimmune_condition.png")
+```
+
+```{r}
+at.risk.t1.a_autoimmune_condition<-ggsurvplot(survfit.t1.a_autoimmune_condition, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t1.a_autoimmune_condition, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+## By a_chronic_kidney_disease
+```{r}
+survfit.t1.a_chronic_kidney_disease<-survfit(Surv(time, status) ~ a_chronic_kidney_disease, 
+                 data = r.healthy.diagnosis)
+ggsurv.t1.a_chronic_kidney_disease<- list(
+  ggsurvplot(survfit.t1.a_chronic_kidney_disease, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t1.a_chronic_kidney_disease, fun = "cloglog", conf.int =TRUE))
+ggsurv.t1.a_chronic_kidney_disease <-arrange_ggsurvplots(ggsurv.t1.a_chronic_kidney_disease, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t1.a_chronic_kidney_disease.png",ggsurv.t1.a_chronic_kidney_disease,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t1.a_chronic_kidney_disease.png")
+```
+
+```{r}
+at.risk.t1.a_chronic_kidney_disease<-ggsurvplot(survfit.t1.a_chronic_kidney_disease, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t1.a_chronic_kidney_disease, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By a_copd
+```{r}
+survfit.t1.a_copd<-survfit(Surv(time, status) ~ a_copd, 
+                 data = r.healthy.diagnosis)
+ggsurv.t1.a_copd<- list(
+  ggsurvplot(survfit.t1.a_copd, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t1.a_copd, fun = "cloglog", conf.int =TRUE))
+ggsurv.t1.a_copd <-arrange_ggsurvplots(ggsurv.t1.a_copd, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t1.a_copd.png",ggsurv.t1.a_copd,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t1.a_copd.png")
+```
+
+```{r}
+at.risk.t1.a_copd<-ggsurvplot(survfit.t1.a_copd, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t1.a_copd, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By a_dementia
+```{r}
+survfit.t1.a_dementia<-survfit(Surv(time, status) ~ a_dementia, 
+                 data = r.healthy.diagnosis)
+ggsurv.t1.a_dementia<- list(
+  ggsurvplot(survfit.t1.a_dementia, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t1.a_dementia, fun = "cloglog", conf.int =TRUE))
+ggsurv.t1.a_dementia <-arrange_ggsurvplots(ggsurv.t1.a_dementia, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t1.a_dementia.png",ggsurv.t1.a_dementia,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t1.a_dementia.png")
+```
+
+```{r}
+at.risk.t1.a_dementia<-ggsurvplot(survfit.t1.a_dementia, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t1.a_dementia, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By a_heart_disease
+```{r}
+survfit.t1.a_heart_disease<-survfit(Surv(time, status) ~ a_heart_disease, 
+                 data = r.healthy.diagnosis)
+ggsurv.t1.a_heart_disease<- list(
+  ggsurvplot(survfit.t1.a_heart_disease, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t1.a_heart_disease, fun = "cloglog", conf.int =TRUE))
+ggsurv.t1.a_heart_disease <-arrange_ggsurvplots(ggsurv.t1.a_heart_disease, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t1.a_heart_disease.png",ggsurv.t1.a_heart_disease,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t1.a_heart_disease.png")
+```
+
+```{r}
+at.risk.t1.a_heart_disease<-ggsurvplot(survfit.t1.a_heart_disease, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t1.a_heart_disease, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By a_hyperlipidemia
+```{r}
+survfit.t1.a_hyperlipidemia<-survfit(Surv(time, status) ~ a_hyperlipidemia, 
+                 data = r.healthy.diagnosis)
+ggsurv.t1.a_hyperlipidemia<- list(
+  ggsurvplot(survfit.t1.a_hyperlipidemia, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t1.a_hyperlipidemia, fun = "cloglog", conf.int =TRUE))
+ggsurv.t1.a_hyperlipidemia <-arrange_ggsurvplots(ggsurv.t1.a_hyperlipidemia, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t1.a_hyperlipidemia.png",ggsurv.t1.a_hyperlipidemia,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t1.a_hyperlipidemia.png")
+```
+
+```{r}
+at.risk.t1.a_hyperlipidemia<-ggsurvplot(survfit.t1.a_hyperlipidemia, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t1.a_hyperlipidemia, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By a_hypertension
+```{r}
+survfit.t1.a_hypertension<-survfit(Surv(time, status) ~ a_hypertension, 
+                 data = r.healthy.diagnosis)
+ggsurv.t1.a_hypertension<- list(
+  ggsurvplot(survfit.t1.a_hypertension, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t1.a_hypertension, fun = "cloglog", conf.int =TRUE))
+ggsurv.t1.a_hypertension <-arrange_ggsurvplots(ggsurv.t1.a_hypertension, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t1.a_hypertension.png",ggsurv.t1.a_hypertension,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t1.a_hypertension.png")
+```
+
+```{r}
+at.risk.t1.a_hypertension<-ggsurvplot(survfit.t1.a_hypertension, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t1.a_hypertension, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By a_malignant_neoplasm
+```{r}
+survfit.t1.a_malignant_neoplasm<-survfit(Surv(time, status) ~ a_malignant_neoplasm, 
+                 data = r.healthy.diagnosis)
+ggsurv.t1.a_malignant_neoplasm<- list(
+  ggsurvplot(survfit.t1.a_malignant_neoplasm, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t1.a_malignant_neoplasm, fun = "cloglog", conf.int =TRUE))
+ggsurv.t1.a_malignant_neoplasm <-arrange_ggsurvplots(ggsurv.t1.a_malignant_neoplasm, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t1.a_malignant_neoplasm.png",ggsurv.t1.a_malignant_neoplasm,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t1.a_malignant_neoplasm.png")
+```
+
+```{r}
+at.risk.t1.a_malignant_neoplasm<-ggsurvplot(survfit.t1.a_malignant_neoplasm, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t1.a_malignant_neoplasm, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By a_obesity.5y
+```{r}
+survfit.t1.a_obesity.5y<-survfit(Surv(time, status) ~ a_obesity.5y, 
+                 data = r.healthy.diagnosis)
+ggsurv.t1.a_obesity.5y<- list(
+  ggsurvplot(survfit.t1.a_obesity.5y, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t1.a_obesity.5y, fun = "cloglog", conf.int =TRUE))
+ggsurv.t1.a_obesity.5y <-arrange_ggsurvplots(ggsurv.t1.a_obesity.5y, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t1.a_obesity.5y.png",ggsurv.t1.a_obesity.5y,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t1.a_obesity.5y.png")
+```
+
+```{r}
+at.risk.t1.a_obesity.5y<-ggsurvplot(survfit.t1.a_obesity.5y, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t1.a_obesity.5y, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By a_t2_diabetes
+```{r}
+survfit.t1.a_t2_diabetes<-survfit(Surv(time, status) ~ a_t2_diabetes, 
+                 data = r.healthy.diagnosis)
+ggsurv.t1.a_t2_diabetes<- list(
+  ggsurvplot(survfit.t1.a_t2_diabetes, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t1.a_t2_diabetes, fun = "cloglog", conf.int =TRUE))
+ggsurv.t1.a_t2_diabetes <-arrange_ggsurvplots(ggsurv.t1.a_t2_diabetes, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t1.a_t2_diabetes.png",ggsurv.t1.a_t2_diabetes,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t1.a_t2_diabetes.png")
+```
+
+```{r}
+at.risk.t1.a_t2_diabetes<-ggsurvplot(survfit.t1.a_t2_diabetes, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t1.a_t2_diabetes, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+## Transition 2: From general population to hospitalised with COVID-19 
+## overall
+```{r}
+survfit.t2<-survfit(Surv(time, status) ~ 1, 
+                 data = r.healthy.hospitalised)
+ggsurvplot.event<-ggsurvplot(survfit.t2, fun = "event", palette="black")
+ggsurvplot.event$plot<-ggsurvplot.event$plot+ coord_cartesian(xlim = c(NA,67))+
+  theme(legend.position = "none")
+
+ggsave( "ggsurv.t2.png",print(ggsurvplot.event),
+        dpi=300,
+        width = 6, height = 5)
+include_graphics("ggsurv.t2.png")
+
+
+
+```
+
+
+```{r}
+survfit.t2<-survfit(Surv(time, status) ~ 1, 
+                 data = r.healthy.hospitalised)
+ggsurvplot.event<-ggsurvplot(survfit.t2, fun = "event", conf.int =TRUE)
+
+
+at.risk.t2<-ggsurvplot(survfit.t2, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t2, 
+      col.names = c("Date",  "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By gender
+```{r}
+survfit.t2.gender<-survfit(Surv(time, status) ~ gender, 
+                 data = r.healthy.hospitalised)
+ggsurvplot.event<-ggsurvplot(survfit.t2.gender, fun = "event", conf.int =TRUE)
+ggsurvplot.event$plot<-ggsurvplot.event$plot+ coord_cartesian(xlim = c(NA,67))+
+  theme(legend.title = element_blank())
+ggsurvplot.cloglog<-ggsurvplot(survfit.t2.gender, fun = "cloglog", conf.int =TRUE)
+ggsurvplot.cloglog$plot<-ggsurvplot.cloglog$plot+ coord_cartesian(xlim = c(NA,67))+
+  theme(legend.position = "none") 
+  
+
+ggsurv.t2.gender<- list(
+  ggsurvplot.event,
+  ggsurvplot.cloglog)
+ggsurv.t2.gender <-arrange_ggsurvplots(ggsurv.t2.gender, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t2.gender.png",ggsurv.t2.gender,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t2.gender.png")
+
+
+
+```
+
+```{r}
+at.risk.t2.gender<-ggsurvplot(survfit.t2.gender, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t2.gender, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By age
+```{r}
+survfit.t2.age_gr<-survfit(Surv(time, status) ~ age_gr, 
+                 data = r.healthy.hospitalised)
+ggsurv.t2.age_gr<- list(
+  ggsurvplot(survfit.t2.age_gr, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t2.age_gr, fun = "cloglog", conf.int =TRUE))
+ggsurv.t2.age_gr <-arrange_ggsurvplots(ggsurv.t2.age_gr, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t2.age_gr.png",ggsurv.t2.age_gr,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t2.age_gr.png")
+```
+
+```{r}
+at.risk.t2.age_gr<-ggsurvplot(survfit.t2.age_gr, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t2.age_gr, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By charlson
+```{r}
+survfit.t2.charlson<-survfit(Surv(time, status) ~ charlson, 
+                 data = r.healthy.hospitalised)
+ggsurv.t2.charlson<- list(
+  ggsurvplot(survfit.t2.charlson, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t2.charlson, fun = "cloglog", conf.int =TRUE))
+ggsurv.t2.charlson <-arrange_ggsurvplots(ggsurv.t2.charlson, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t2.charlson.png",ggsurv.t2.charlson,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t2.charlson.png")
+```
+
+```{r}
+at.risk.t2.charlson<-ggsurvplot(survfit.t2.charlson, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t2.charlson, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By a_autoimmune_condition
+```{r}
+survfit.t2.a_autoimmune_condition<-survfit(Surv(time, status) ~ a_autoimmune_condition, 
+                 data = r.healthy.hospitalised)
+ggsurv.t2.a_autoimmune_condition<- list(
+  ggsurvplot(survfit.t2.a_autoimmune_condition, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t2.a_autoimmune_condition, fun = "cloglog", conf.int =TRUE))
+ggsurv.t2.a_autoimmune_condition <-arrange_ggsurvplots(ggsurv.t2.a_autoimmune_condition, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t2.a_autoimmune_condition.png",ggsurv.t2.a_autoimmune_condition,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t2.a_autoimmune_condition.png")
+```
+
+```{r}
+at.risk.t2.a_autoimmune_condition<-ggsurvplot(survfit.t2.a_autoimmune_condition, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t2.a_autoimmune_condition, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+## By a_chronic_kidney_disease
+```{r}
+survfit.t2.a_chronic_kidney_disease<-survfit(Surv(time, status) ~ a_chronic_kidney_disease, 
+                 data = r.healthy.hospitalised)
+ggsurv.t2.a_chronic_kidney_disease<- list(
+  ggsurvplot(survfit.t2.a_chronic_kidney_disease, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t2.a_chronic_kidney_disease, fun = "cloglog", conf.int =TRUE))
+ggsurv.t2.a_chronic_kidney_disease <-arrange_ggsurvplots(ggsurv.t2.a_chronic_kidney_disease, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t2.a_chronic_kidney_disease.png",ggsurv.t2.a_chronic_kidney_disease,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t2.a_chronic_kidney_disease.png")
+```
+
+```{r}
+at.risk.t2.a_chronic_kidney_disease<-ggsurvplot(survfit.t2.a_chronic_kidney_disease, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t2.a_chronic_kidney_disease, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By a_copd
+```{r}
+survfit.t2.a_copd<-survfit(Surv(time, status) ~ a_copd, 
+                 data = r.healthy.hospitalised)
+ggsurv.t2.a_copd<- list(
+  ggsurvplot(survfit.t2.a_copd, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t2.a_copd, fun = "cloglog", conf.int =TRUE))
+ggsurv.t2.a_copd <-arrange_ggsurvplots(ggsurv.t2.a_copd, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t2.a_copd.png",ggsurv.t2.a_copd,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t2.a_copd.png")
+```
+
+```{r}
+at.risk.t2.a_copd<-ggsurvplot(survfit.t2.a_copd, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t2.a_copd, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By a_dementia
+```{r}
+survfit.t2.a_dementia<-survfit(Surv(time, status) ~ a_dementia, 
+                 data = r.healthy.hospitalised)
+ggsurv.t2.a_dementia<- list(
+  ggsurvplot(survfit.t2.a_dementia, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t2.a_dementia, fun = "cloglog", conf.int =TRUE))
+ggsurv.t2.a_dementia <-arrange_ggsurvplots(ggsurv.t2.a_dementia, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t2.a_dementia.png",ggsurv.t2.a_dementia,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t2.a_dementia.png")
+```
+
+```{r}
+at.risk.t2.a_dementia<-ggsurvplot(survfit.t2.a_dementia, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t2.a_dementia, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By a_heart_disease
+```{r}
+survfit.t2.a_heart_disease<-survfit(Surv(time, status) ~ a_heart_disease, 
+                 data = r.healthy.hospitalised)
+ggsurv.t2.a_heart_disease<- list(
+  ggsurvplot(survfit.t2.a_heart_disease, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t2.a_heart_disease, fun = "cloglog", conf.int =TRUE))
+ggsurv.t2.a_heart_disease <-arrange_ggsurvplots(ggsurv.t2.a_heart_disease, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t2.a_heart_disease.png",ggsurv.t2.a_heart_disease,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t2.a_heart_disease.png")
+```
+
+```{r}
+at.risk.t2.a_heart_disease<-ggsurvplot(survfit.t2.a_heart_disease, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t2.a_heart_disease, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By a_hyperlipidemia
+```{r}
+survfit.t2.a_hyperlipidemia<-survfit(Surv(time, status) ~ a_hyperlipidemia, 
+                 data = r.healthy.hospitalised)
+ggsurv.t2.a_hyperlipidemia<- list(
+  ggsurvplot(survfit.t2.a_hyperlipidemia, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t2.a_hyperlipidemia, fun = "cloglog", conf.int =TRUE))
+ggsurv.t2.a_hyperlipidemia <-arrange_ggsurvplots(ggsurv.t2.a_hyperlipidemia, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t2.a_hyperlipidemia.png",ggsurv.t2.a_hyperlipidemia,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t2.a_hyperlipidemia.png")
+```
+
+```{r}
+at.risk.t2.a_hyperlipidemia<-ggsurvplot(survfit.t2.a_hyperlipidemia, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t2.a_hyperlipidemia, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By a_hypertension
+```{r}
+survfit.t2.a_hypertension<-survfit(Surv(time, status) ~ a_hypertension, 
+                 data = r.healthy.hospitalised)
+ggsurv.t2.a_hypertension<- list(
+  ggsurvplot(survfit.t2.a_hypertension, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t2.a_hypertension, fun = "cloglog", conf.int =TRUE))
+ggsurv.t2.a_hypertension <-arrange_ggsurvplots(ggsurv.t2.a_hypertension, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t2.a_hypertension.png",ggsurv.t2.a_hypertension,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t2.a_hypertension.png")
+```
+
+```{r}
+at.risk.t2.a_hypertension<-ggsurvplot(survfit.t2.a_hypertension, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t2.a_hypertension, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By a_malignant_neoplasm
+```{r}
+survfit.t2.a_malignant_neoplasm<-survfit(Surv(time, status) ~ a_malignant_neoplasm, 
+                 data = r.healthy.hospitalised)
+ggsurv.t2.a_malignant_neoplasm<- list(
+  ggsurvplot(survfit.t2.a_malignant_neoplasm, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t2.a_malignant_neoplasm, fun = "cloglog", conf.int =TRUE))
+ggsurv.t2.a_malignant_neoplasm <-arrange_ggsurvplots(ggsurv.t2.a_malignant_neoplasm, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t2.a_malignant_neoplasm.png",ggsurv.t2.a_malignant_neoplasm,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t2.a_malignant_neoplasm.png")
+```
+
+```{r}
+at.risk.t2.a_malignant_neoplasm<-ggsurvplot(survfit.t2.a_malignant_neoplasm, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t2.a_malignant_neoplasm, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By a_obesity.5y
+```{r}
+survfit.t2.a_obesity.5y<-survfit(Surv(time, status) ~ a_obesity.5y, 
+                 data = r.healthy.hospitalised)
+ggsurv.t2.a_obesity.5y<- list(
+  ggsurvplot(survfit.t2.a_obesity.5y, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t2.a_obesity.5y, fun = "cloglog", conf.int =TRUE))
+ggsurv.t2.a_obesity.5y <-arrange_ggsurvplots(ggsurv.t2.a_obesity.5y, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t2.a_obesity.5y.png",ggsurv.t2.a_obesity.5y,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t2.a_obesity.5y.png")
+```
+
+```{r}
+at.risk.t2.a_obesity.5y<-ggsurvplot(survfit.t2.a_obesity.5y, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t2.a_obesity.5y, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By a_t2_diabetes
+```{r}
+survfit.t2.a_t2_diabetes<-survfit(Surv(time, status) ~ a_t2_diabetes, 
+                 data = r.healthy.hospitalised)
+ggsurv.t2.a_t2_diabetes<- list(
+  ggsurvplot(survfit.t2.a_t2_diabetes, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t2.a_t2_diabetes, fun = "cloglog", conf.int =TRUE))
+ggsurv.t2.a_t2_diabetes <-arrange_ggsurvplots(ggsurv.t2.a_t2_diabetes, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t2.a_t2_diabetes.png",ggsurv.t2.a_t2_diabetes,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t2.a_t2_diabetes.png")
+```
+
+```{r}
+at.risk.t2.a_t2_diabetes<-ggsurvplot(survfit.t2.a_t2_diabetes, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t2.a_t2_diabetes, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## Transition 3: From general population to death 
+## overall
+```{r}
+survfit.t3<-survfit(Surv(time, status) ~ 1, 
+                 data = r.healthy.death)
+ggsurvplot.event<-ggsurvplot(survfit.t3, fun = "event", palette="black")
+ggsurvplot.event$plot<-ggsurvplot.event$plot+ coord_cartesian(xlim = c(NA,67))+
+  theme(legend.position = "none")
+
+ggsave( "ggsurv.t3.png",print(ggsurvplot.event),
+        dpi=300,
+        width = 6, height = 5)
+include_graphics("ggsurv.t3.png")
+
+
+
+```
+
+
+```{r}
+survfit.t3<-survfit(Surv(time, status) ~ 1, 
+                 data = r.healthy.death)
+ggsurvplot.event<-ggsurvplot(survfit.t3, fun = "event", conf.int =TRUE)
+
+
+at.risk.t3<-ggsurvplot(survfit.t3, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t3, 
+      col.names = c("Date",  "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By gender
+```{r}
+survfit.t3.gender<-survfit(Surv(time, status) ~ gender, 
+                 data = r.healthy.death)
+ggsurvplot.event<-ggsurvplot(survfit.t3.gender, fun = "event", conf.int =TRUE)
+ggsurvplot.event$plot<-ggsurvplot.event$plot+ coord_cartesian(xlim = c(NA,67))+
+  theme(legend.title = element_blank())
+ggsurvplot.cloglog<-ggsurvplot(survfit.t3.gender, fun = "cloglog", conf.int =TRUE)
+ggsurvplot.cloglog$plot<-ggsurvplot.cloglog$plot+ coord_cartesian(xlim = c(NA,67))+
+  theme(legend.position = "none") 
+  
+
+ggsurv.t3.gender<- list(
+  ggsurvplot.event,
+  ggsurvplot.cloglog)
+ggsurv.t3.gender <-arrange_ggsurvplots(ggsurv.t3.gender, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t3.gender.png",ggsurv.t3.gender,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t3.gender.png")
+
+
+
+```
+
+```{r}
+at.risk.t3.gender<-ggsurvplot(survfit.t3.gender, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t3.gender, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By age
+```{r}
+survfit.t3.age_gr<-survfit(Surv(time, status) ~ age_gr, 
+                 data = r.healthy.death)
+ggsurv.t3.age_gr<- list(
+  ggsurvplot(survfit.t3.age_gr, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t3.age_gr, fun = "cloglog", conf.int =TRUE))
+ggsurv.t3.age_gr <-arrange_ggsurvplots(ggsurv.t3.age_gr, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t3.age_gr.png",ggsurv.t3.age_gr,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t3.age_gr.png")
+```
+
+```{r}
+at.risk.t3.age_gr<-ggsurvplot(survfit.t3.age_gr, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t3.age_gr, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By charlson
+```{r}
+survfit.t3.charlson<-survfit(Surv(time, status) ~ charlson, 
+                 data = r.healthy.death)
+ggsurv.t3.charlson<- list(
+  ggsurvplot(survfit.t3.charlson, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t3.charlson, fun = "cloglog", conf.int =TRUE))
+ggsurv.t3.charlson <-arrange_ggsurvplots(ggsurv.t3.charlson, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t3.charlson.png",ggsurv.t3.charlson,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t3.charlson.png")
+```
+
+```{r}
+at.risk.t3.charlson<-ggsurvplot(survfit.t3.charlson, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t3.charlson, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+## By a_autoimmune_condition
+```{r}
+survfit.t3.a_autoimmune_condition<-survfit(Surv(time, status) ~ a_autoimmune_condition, 
+                 data = r.healthy.death)
+ggsurv.t3.a_autoimmune_condition<- list(
+  ggsurvplot(survfit.t3.a_autoimmune_condition, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t3.a_autoimmune_condition, fun = "cloglog", conf.int =TRUE))
+ggsurv.t3.a_autoimmune_condition <-arrange_ggsurvplots(ggsurv.t3.a_autoimmune_condition, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t3.a_autoimmune_condition.png",ggsurv.t3.a_autoimmune_condition,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t3.a_autoimmune_condition.png")
+```
+
+```{r}
+at.risk.t3.a_autoimmune_condition<-ggsurvplot(survfit.t3.a_autoimmune_condition, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t3.a_autoimmune_condition, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+## By a_chronic_kidney_disease
+```{r}
+survfit.t3.a_chronic_kidney_disease<-survfit(Surv(time, status) ~ a_chronic_kidney_disease, 
+                 data = r.healthy.death)
+ggsurv.t3.a_chronic_kidney_disease<- list(
+  ggsurvplot(survfit.t3.a_chronic_kidney_disease, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t3.a_chronic_kidney_disease, fun = "cloglog", conf.int =TRUE))
+ggsurv.t3.a_chronic_kidney_disease <-arrange_ggsurvplots(ggsurv.t3.a_chronic_kidney_disease, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t3.a_chronic_kidney_disease.png",ggsurv.t3.a_chronic_kidney_disease,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t3.a_chronic_kidney_disease.png")
+```
+
+```{r}
+at.risk.t3.a_chronic_kidney_disease<-ggsurvplot(survfit.t3.a_chronic_kidney_disease, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t3.a_chronic_kidney_disease, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+## By a_copd
+```{r}
+survfit.t3.a_copd<-survfit(Surv(time, status) ~ a_copd, 
+                 data = r.healthy.death)
+ggsurv.t3.a_copd<- list(
+  ggsurvplot(survfit.t3.a_copd, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t3.a_copd, fun = "cloglog", conf.int =TRUE))
+ggsurv.t3.a_copd <-arrange_ggsurvplots(ggsurv.t3.a_copd, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t3.a_copd.png",ggsurv.t3.a_copd,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t3.a_copd.png")
+```
+
+```{r}
+at.risk.t3.a_copd<-ggsurvplot(survfit.t3.a_copd, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t3.a_copd, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+## By a_dementia
+```{r}
+survfit.t3.a_dementia<-survfit(Surv(time, status) ~ a_dementia, 
+                 data = r.healthy.death)
+ggsurv.t3.a_dementia<- list(
+  ggsurvplot(survfit.t3.a_dementia, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t3.a_dementia, fun = "cloglog", conf.int =TRUE))
+ggsurv.t3.a_dementia <-arrange_ggsurvplots(ggsurv.t3.a_dementia, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t3.a_dementia.png",ggsurv.t3.a_dementia,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t3.a_dementia.png")
+```
+
+```{r}
+at.risk.t3.a_dementia<-ggsurvplot(survfit.t3.a_dementia, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t3.a_dementia, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+## By a_heart_disease
+```{r}
+survfit.t3.a_heart_disease<-survfit(Surv(time, status) ~ a_heart_disease, 
+                 data = r.healthy.death)
+ggsurv.t3.a_heart_disease<- list(
+  ggsurvplot(survfit.t3.a_heart_disease, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t3.a_heart_disease, fun = "cloglog", conf.int =TRUE))
+ggsurv.t3.a_heart_disease <-arrange_ggsurvplots(ggsurv.t3.a_heart_disease, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t3.a_heart_disease.png",ggsurv.t3.a_heart_disease,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t3.a_heart_disease.png")
+```
+
+```{r}
+at.risk.t3.a_heart_disease<-ggsurvplot(survfit.t3.a_heart_disease, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t3.a_heart_disease, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+## By a_hyperlipidemia
+```{r}
+survfit.t3.a_hyperlipidemia<-survfit(Surv(time, status) ~ a_hyperlipidemia, 
+                 data = r.healthy.death)
+ggsurv.t3.a_hyperlipidemia<- list(
+  ggsurvplot(survfit.t3.a_hyperlipidemia, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t3.a_hyperlipidemia, fun = "cloglog", conf.int =TRUE))
+ggsurv.t3.a_hyperlipidemia <-arrange_ggsurvplots(ggsurv.t3.a_hyperlipidemia, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t3.a_hyperlipidemia.png",ggsurv.t3.a_hyperlipidemia,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t3.a_hyperlipidemia.png")
+```
+
+```{r}
+at.risk.t3.a_hyperlipidemia<-ggsurvplot(survfit.t3.a_hyperlipidemia, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t3.a_hyperlipidemia, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+## By a_hypertension
+```{r}
+survfit.t3.a_hypertension<-survfit(Surv(time, status) ~ a_hypertension, 
+                 data = r.healthy.death)
+ggsurv.t3.a_hypertension<- list(
+  ggsurvplot(survfit.t3.a_hypertension, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t3.a_hypertension, fun = "cloglog", conf.int =TRUE))
+ggsurv.t3.a_hypertension <-arrange_ggsurvplots(ggsurv.t3.a_hypertension, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t3.a_hypertension.png",ggsurv.t3.a_hypertension,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t3.a_hypertension.png")
+```
+
+```{r}
+at.risk.t3.a_hypertension<-ggsurvplot(survfit.t3.a_hypertension, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t3.a_hypertension, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+## By a_malignant_neoplasm
+```{r}
+survfit.t3.a_malignant_neoplasm<-survfit(Surv(time, status) ~ a_malignant_neoplasm, 
+                 data = r.healthy.death)
+ggsurv.t3.a_malignant_neoplasm<- list(
+  ggsurvplot(survfit.t3.a_malignant_neoplasm, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t3.a_malignant_neoplasm, fun = "cloglog", conf.int =TRUE))
+ggsurv.t3.a_malignant_neoplasm <-arrange_ggsurvplots(ggsurv.t3.a_malignant_neoplasm, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t3.a_malignant_neoplasm.png",ggsurv.t3.a_malignant_neoplasm,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t3.a_malignant_neoplasm.png")
+```
+
+```{r}
+at.risk.t3.a_malignant_neoplasm<-ggsurvplot(survfit.t3.a_malignant_neoplasm, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t3.a_malignant_neoplasm, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+## By a_obesity.5y
+```{r}
+survfit.t3.a_obesity.5y<-survfit(Surv(time, status) ~ a_obesity.5y, 
+                 data = r.healthy.death)
+ggsurv.t3.a_obesity.5y<- list(
+  ggsurvplot(survfit.t3.a_obesity.5y, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t3.a_obesity.5y, fun = "cloglog", conf.int =TRUE))
+ggsurv.t3.a_obesity.5y <-arrange_ggsurvplots(ggsurv.t3.a_obesity.5y, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t3.a_obesity.5y.png",ggsurv.t3.a_obesity.5y,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t3.a_obesity.5y.png")
+```
+
+```{r}
+at.risk.t3.a_obesity.5y<-ggsurvplot(survfit.t3.a_obesity.5y, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t3.a_obesity.5y, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+## By a_t2_diabetes
+```{r}
+survfit.t3.a_t2_diabetes<-survfit(Surv(time, status) ~ a_t2_diabetes, 
+                 data = r.healthy.death)
+ggsurv.t3.a_t2_diabetes<- list(
+  ggsurvplot(survfit.t3.a_t2_diabetes, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t3.a_t2_diabetes, fun = "cloglog", conf.int =TRUE))
+ggsurv.t3.a_t2_diabetes <-arrange_ggsurvplots(ggsurv.t3.a_t2_diabetes, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t3.a_t2_diabetes.png",ggsurv.t3.a_t2_diabetes,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t3.a_t2_diabetes.png")
+```
+
+```{r}
+at.risk.t3.a_t2_diabetes<-ggsurvplot(survfit.t3.a_t2_diabetes, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  mutate(date=as.Date("29/02/2020", 
+                    "%d/%m/%y")+time) %>% 
+  select(date, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t3.a_t2_diabetes, 
+      col.names = c("Date", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+## Transition 4: From diagnosed with COVID-19 to hospitalised with COVID-19 
+## overall
+```{r}
+survfit.t4<-survfit(Surv(time, status) ~ 1, 
+                 data = r.diagnosis.hospitalised)
+ggsurvplot.event<-ggsurvplot(survfit.t4, fun = "event", palette="black")
+ggsurvplot.event$plot<-ggsurvplot.event$plot+ coord_cartesian(xlim = c(NA,67))+
+  theme(legend.position = "none")
+
+ggsave( "ggsurv.t4.png",print(ggsurvplot.event),
+        dpi=300,
+        width = 6, height = 5)
+include_graphics("ggsurv.t4.png")
+
+
+
+```
+
+
+```{r}
+survfit.t4<-survfit(Surv(time, status) ~ 1, 
+                 data = r.diagnosis.hospitalised)
+ggsurvplot.event<-ggsurvplot(survfit.t4, fun = "event", conf.int =TRUE)
+
+
+at.risk.t4<-ggsurvplot(survfit.t4, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t4, 
+      col.names = c("Time since diagnosis",  "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By gender
+```{r}
+survfit.t4.gender<-survfit(Surv(time, status) ~ gender, 
+                 data = r.diagnosis.hospitalised)
+ggsurvplot.event<-ggsurvplot(survfit.t4.gender, fun = "event", conf.int =TRUE)
+ggsurvplot.event$plot<-ggsurvplot.event$plot+ coord_cartesian(xlim = c(NA,67))+
+  theme(legend.title = element_blank())
+ggsurvplot.cloglog<-ggsurvplot(survfit.t4.gender, fun = "cloglog", conf.int =TRUE)
+ggsurvplot.cloglog$plot<-ggsurvplot.cloglog$plot+ coord_cartesian(xlim = c(NA,67))+
+  theme(legend.position = "none") 
+  
+
+ggsurv.t4.gender<- list(
+  ggsurvplot.event,
+  ggsurvplot.cloglog)
+ggsurv.t4.gender <-arrange_ggsurvplots(ggsurv.t4.gender, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t4.gender.png",ggsurv.t4.gender,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t4.gender.png")
+
+
+
+```
+
+```{r}
+at.risk.t4.gender<-ggsurvplot(survfit.t4.gender, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t4.gender, 
+      col.names = c("Time since diagnosis", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By age
+```{r}
+survfit.t4.age_gr<-survfit(Surv(time, status) ~ age_gr, 
+                 data = r.diagnosis.hospitalised %>% filter(age_gr!="Under 18")) # count less than 5, so omit
+ ggsurv.t4.age_gr<- list(
+  ggsurvplot(survfit.t4.age_gr, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t4.age_gr, fun = "cloglog", conf.int =TRUE))
+ggsurv.t4.age_gr <-arrange_ggsurvplots(ggsurv.t4.age_gr, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t4.age_gr.png",ggsurv.t4.age_gr,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t4.age_gr.png")
+```
+
+```{r}
+at.risk.t4.age_gr<-ggsurvplot(survfit.t4.age_gr, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t4.age_gr, 
+      col.names = c("Time since diagnosis", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By charlson
+```{r}
+survfit.t4.charlson<-survfit(Surv(time, status) ~ charlson, 
+                 data = r.diagnosis.hospitalised)
+ggsurv.t4.charlson<- list(
+  ggsurvplot(survfit.t4.charlson, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t4.charlson, fun = "cloglog", conf.int =TRUE))
+ggsurv.t4.charlson <-arrange_ggsurvplots(ggsurv.t4.charlson, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t4.charlson.png",ggsurv.t4.charlson,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t4.charlson.png")
+```
+
+```{r}
+at.risk.t4.charlson<-ggsurvplot(survfit.t4.charlson, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t4.charlson, 
+      col.names = c("Time since diagnosis", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+## By a_autoimmune_condition
+```{r}
+survfit.t4.a_autoimmune_condition<-survfit(Surv(time, status) ~ a_autoimmune_condition, 
+                 data = r.diagnosis.hospitalised)
+ggsurv.t4.a_autoimmune_condition<- list(
+  ggsurvplot(survfit.t4.a_autoimmune_condition, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t4.a_autoimmune_condition, fun = "cloglog", conf.int =TRUE))
+ggsurv.t4.a_autoimmune_condition <-arrange_ggsurvplots(ggsurv.t4.a_autoimmune_condition, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t4.a_autoimmune_condition.png",ggsurv.t4.a_autoimmune_condition,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t4.a_autoimmune_condition.png")
+```
+
+```{r}
+at.risk.t4.a_autoimmune_condition<-ggsurvplot(survfit.t4.a_autoimmune_condition, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t4.a_autoimmune_condition, 
+      col.names = c("Time since diagnosis", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+
+## By a_chronic_kidney_disease
+```{r}
+survfit.t4.a_chronic_kidney_disease<-survfit(Surv(time, status) ~ a_chronic_kidney_disease, 
+                 data = r.diagnosis.hospitalised)
+ggsurv.t4.a_chronic_kidney_disease<- list(
+  ggsurvplot(survfit.t4.a_chronic_kidney_disease, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t4.a_chronic_kidney_disease, fun = "cloglog", conf.int =TRUE))
+ggsurv.t4.a_chronic_kidney_disease <-arrange_ggsurvplots(ggsurv.t4.a_chronic_kidney_disease, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t4.a_chronic_kidney_disease.png",ggsurv.t4.a_chronic_kidney_disease,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t4.a_chronic_kidney_disease.png")
+```
+
+```{r}
+at.risk.t4.a_chronic_kidney_disease<-ggsurvplot(survfit.t4.a_chronic_kidney_disease, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t4.a_chronic_kidney_disease, 
+      col.names = c("Time since diagnosis", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+## By a_copd
+```{r}
+survfit.t4.a_copd<-survfit(Surv(time, status) ~ a_copd, 
+                 data = r.diagnosis.hospitalised)
+ggsurv.t4.a_copd<- list(
+  ggsurvplot(survfit.t4.a_copd, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t4.a_copd, fun = "cloglog", conf.int =TRUE))
+ggsurv.t4.a_copd <-arrange_ggsurvplots(ggsurv.t4.a_copd, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t4.a_copd.png",ggsurv.t4.a_copd,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t4.a_copd.png")
+```
+
+```{r}
+at.risk.t4.a_copd<-ggsurvplot(survfit.t4.a_copd, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t4.a_copd, 
+      col.names = c("Time since diagnosis", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+## By a_dementia
+```{r}
+survfit.t4.a_dementia<-survfit(Surv(time, status) ~ a_dementia, 
+                 data = r.diagnosis.hospitalised)
+ggsurv.t4.a_dementia<- list(
+  ggsurvplot(survfit.t4.a_dementia, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t4.a_dementia, fun = "cloglog", conf.int =TRUE))
+ggsurv.t4.a_dementia <-arrange_ggsurvplots(ggsurv.t4.a_dementia, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t4.a_dementia.png",ggsurv.t4.a_dementia,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t4.a_dementia.png")
+```
+
+```{r}
+at.risk.t4.a_dementia<-ggsurvplot(survfit.t4.a_dementia, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t4.a_dementia, 
+      col.names = c("Time since diagnosis", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+## By a_heart_disease
+```{r}
+survfit.t4.a_heart_disease<-survfit(Surv(time, status) ~ a_heart_disease, 
+                 data = r.diagnosis.hospitalised)
+ggsurv.t4.a_heart_disease<- list(
+  ggsurvplot(survfit.t4.a_heart_disease, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t4.a_heart_disease, fun = "cloglog", conf.int =TRUE))
+ggsurv.t4.a_heart_disease <-arrange_ggsurvplots(ggsurv.t4.a_heart_disease, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t4.a_heart_disease.png",ggsurv.t4.a_heart_disease,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t4.a_heart_disease.png")
+```
+
+```{r}
+at.risk.t4.a_heart_disease<-ggsurvplot(survfit.t4.a_heart_disease, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t4.a_heart_disease, 
+      col.names = c("Time since diagnosis", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+## By a_hyperlipidemia
+```{r}
+survfit.t4.a_hyperlipidemia<-survfit(Surv(time, status) ~ a_hyperlipidemia, 
+                 data = r.diagnosis.hospitalised)
+ggsurv.t4.a_hyperlipidemia<- list(
+  ggsurvplot(survfit.t4.a_hyperlipidemia, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t4.a_hyperlipidemia, fun = "cloglog", conf.int =TRUE))
+ggsurv.t4.a_hyperlipidemia <-arrange_ggsurvplots(ggsurv.t4.a_hyperlipidemia, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t4.a_hyperlipidemia.png",ggsurv.t4.a_hyperlipidemia,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t4.a_hyperlipidemia.png")
+```
+
+```{r}
+at.risk.t4.a_hyperlipidemia<-ggsurvplot(survfit.t4.a_hyperlipidemia, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t4.a_hyperlipidemia, 
+      col.names = c("Time since diagnosis", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+## By a_hypertension
+```{r}
+survfit.t4.a_hypertension<-survfit(Surv(time, status) ~ a_hypertension, 
+                 data = r.diagnosis.hospitalised)
+ggsurv.t4.a_hypertension<- list(
+  ggsurvplot(survfit.t4.a_hypertension, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t4.a_hypertension, fun = "cloglog", conf.int =TRUE))
+ggsurv.t4.a_hypertension <-arrange_ggsurvplots(ggsurv.t4.a_hypertension, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t4.a_hypertension.png",ggsurv.t4.a_hypertension,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t4.a_hypertension.png")
+```
+
+```{r}
+at.risk.t4.a_hypertension<-ggsurvplot(survfit.t4.a_hypertension, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t4.a_hypertension, 
+      col.names = c("Time since diagnosis", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+## By a_malignant_neoplasm
+```{r}
+survfit.t4.a_malignant_neoplasm<-survfit(Surv(time, status) ~ a_malignant_neoplasm, 
+                 data = r.diagnosis.hospitalised)
+ggsurv.t4.a_malignant_neoplasm<- list(
+  ggsurvplot(survfit.t4.a_malignant_neoplasm, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t4.a_malignant_neoplasm, fun = "cloglog", conf.int =TRUE))
+ggsurv.t4.a_malignant_neoplasm <-arrange_ggsurvplots(ggsurv.t4.a_malignant_neoplasm, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t4.a_malignant_neoplasm.png",ggsurv.t4.a_malignant_neoplasm,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t4.a_malignant_neoplasm.png")
+```
+
+```{r}
+at.risk.t4.a_malignant_neoplasm<-ggsurvplot(survfit.t4.a_malignant_neoplasm, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t4.a_malignant_neoplasm, 
+      col.names = c("Time since diagnosis", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+## By a_obesity.5y
+```{r}
+survfit.t4.a_obesity.5y<-survfit(Surv(time, status) ~ a_obesity.5y, 
+                 data = r.diagnosis.hospitalised)
+ggsurv.t4.a_obesity.5y<- list(
+  ggsurvplot(survfit.t4.a_obesity.5y, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t4.a_obesity.5y, fun = "cloglog", conf.int =TRUE))
+ggsurv.t4.a_obesity.5y <-arrange_ggsurvplots(ggsurv.t4.a_obesity.5y, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t4.a_obesity.5y.png",ggsurv.t4.a_obesity.5y,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t4.a_obesity.5y.png")
+```
+
+```{r}
+at.risk.t4.a_obesity.5y<-ggsurvplot(survfit.t4.a_obesity.5y, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t4.a_obesity.5y, 
+      col.names = c("Time since diagnosis", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+## By a_t2_diabetes
+```{r}
+survfit.t4.a_t2_diabetes<-survfit(Surv(time, status) ~ a_t2_diabetes, 
+                 data = r.diagnosis.hospitalised)
+ggsurv.t4.a_t2_diabetes<- list(
+  ggsurvplot(survfit.t4.a_t2_diabetes, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t4.a_t2_diabetes, fun = "cloglog", conf.int =TRUE))
+ggsurv.t4.a_t2_diabetes <-arrange_ggsurvplots(ggsurv.t4.a_t2_diabetes, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t4.a_t2_diabetes.png",ggsurv.t4.a_t2_diabetes,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t4.a_t2_diabetes.png")
+```
+
+```{r}
+at.risk.t4.a_t2_diabetes<-ggsurvplot(survfit.t4.a_t2_diabetes, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t4.a_t2_diabetes, 
+      col.names = c("Time since diagnosis", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+## Transition 5: From diagnosed with COVID-19 to death 
+## overall
+```{r}
+survfit.t5<-survfit(Surv(time, status) ~ 1, 
+                 data = r.diagnosis.death)
+ggsurvplot.event<-ggsurvplot(survfit.t5, fun = "event", palette="black")
+ggsurvplot.event$plot<-ggsurvplot.event$plot+ coord_cartesian(xlim = c(NA,67))+
+  theme(legend.position = "none")
+
+ggsave( "ggsurv.t5.png",print(ggsurvplot.event),
+        dpi=300,
+        width = 6, height = 5)
+include_graphics("ggsurv.t5.png")
+
+
+
+```
+
+
+```{r}
+survfit.t5<-survfit(Surv(time, status) ~ 1, 
+                 data = r.diagnosis.death)
+ggsurvplot.event<-ggsurvplot(survfit.t5, fun = "event", conf.int =TRUE)
+
+
+at.risk.t5<-ggsurvplot(survfit.t5, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t5, 
+      col.names = c("Time since diagnosis",  "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By gender
+```{r}
+survfit.t5.gender<-survfit(Surv(time, status) ~ gender, 
+                 data = r.diagnosis.death)
+ggsurvplot.event<-ggsurvplot(survfit.t5.gender, fun = "event", conf.int =TRUE)
+ggsurvplot.event$plot<-ggsurvplot.event$plot+ coord_cartesian(xlim = c(NA,67))+
+  theme(legend.title = element_blank())
+ggsurvplot.cloglog<-ggsurvplot(survfit.t5.gender, fun = "cloglog", conf.int =TRUE)
+ggsurvplot.cloglog$plot<-ggsurvplot.cloglog$plot+ coord_cartesian(xlim = c(NA,67))+
+  theme(legend.position = "none") 
+  
+
+ggsurv.t5.gender<- list(
+  ggsurvplot.event,
+  ggsurvplot.cloglog)
+ggsurv.t5.gender <-arrange_ggsurvplots(ggsurv.t5.gender, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t5.gender.png",ggsurv.t5.gender,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t5.gender.png")
+
+
+
+```
+
+```{r}
+at.risk.t5.gender<-ggsurvplot(survfit.t5.gender, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t5.gender, 
+      col.names = c("Time since diagnosis", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By age
+```{r}
+survfit.t5.age_gr<-survfit(Surv(time, status) ~ age_gr, 
+                 data = r.diagnosis.death)
+ggsurv.t5.age_gr<- list(
+  ggsurvplot(survfit.t5.age_gr, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t5.age_gr, fun = "cloglog", conf.int =TRUE))
+ggsurv.t5.age_gr <-arrange_ggsurvplots(ggsurv.t5.age_gr, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t5.age_gr.png",ggsurv.t5.age_gr,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t5.age_gr.png")
+```
+
+```{r}
+at.risk.t5.age_gr<-ggsurvplot(survfit.t5.age_gr, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t5.age_gr, 
+      col.names = c("Time since diagnosis", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By charlson
+```{r}
+survfit.t5.charlson<-survfit(Surv(time, status) ~ charlson, 
+                 data = r.diagnosis.death)
+ggsurv.t5.charlson<- list(
+  ggsurvplot(survfit.t5.charlson, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t5.charlson, fun = "cloglog", conf.int =TRUE))
+ggsurv.t5.charlson <-arrange_ggsurvplots(ggsurv.t5.charlson, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t5.charlson.png",ggsurv.t5.charlson,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t5.charlson.png")
+```
+
+```{r}
+at.risk.t5.charlson<-ggsurvplot(survfit.t5.charlson, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t5.charlson, 
+      col.names = c("Time since diagnosis", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+
+## By a_autoimmune_condition
+```{r}
+survfit.t5.a_autoimmune_condition<-survfit(Surv(time, status) ~ a_autoimmune_condition, 
+                 data = r.diagnosis.death)
+ggsurv.t5.a_autoimmune_condition<- list(
+  ggsurvplot(survfit.t5.a_autoimmune_condition, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t5.a_autoimmune_condition, fun = "cloglog", conf.int =TRUE))
+ggsurv.t5.a_autoimmune_condition <-arrange_ggsurvplots(ggsurv.t5.a_autoimmune_condition, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t5.a_autoimmune_condition.png",ggsurv.t5.a_autoimmune_condition,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t5.a_autoimmune_condition.png")
+```
+
+```{r}
+at.risk.t5.a_autoimmune_condition<-ggsurvplot(survfit.t5.a_autoimmune_condition, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t5.a_autoimmune_condition, 
+      col.names = c("Time since diagnosis", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+
+
+## By a_chronic_kidney_disease
+```{r}
+survfit.t4.a_chronic_kidney_disease<-survfit(Surv(time, status) ~ a_chronic_kidney_disease, 
+                 data = r.diagnosis.hospitalised)
+ggsurv.t4.a_chronic_kidney_disease<- list(
+  ggsurvplot(survfit.t4.a_chronic_kidney_disease, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t4.a_chronic_kidney_disease, fun = "cloglog", conf.int =TRUE))
+ggsurv.t4.a_chronic_kidney_disease <-arrange_ggsurvplots(ggsurv.t4.a_chronic_kidney_disease, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t4.a_chronic_kidney_disease.png",ggsurv.t4.a_chronic_kidney_disease,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t4.a_chronic_kidney_disease.png")
+```
+
+```{r}
+at.risk.t4.a_chronic_kidney_disease<-ggsurvplot(survfit.t4.a_chronic_kidney_disease, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t4.a_chronic_kidney_disease, 
+      col.names = c("Time since diagnosis", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+## By a_copd
+```{r}
+survfit.t4.a_copd<-survfit(Surv(time, status) ~ a_copd, 
+                 data = r.diagnosis.hospitalised)
+ggsurv.t4.a_copd<- list(
+  ggsurvplot(survfit.t4.a_copd, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t4.a_copd, fun = "cloglog", conf.int =TRUE))
+ggsurv.t4.a_copd <-arrange_ggsurvplots(ggsurv.t4.a_copd, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t4.a_copd.png",ggsurv.t4.a_copd,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t4.a_copd.png")
+```
+
+```{r}
+at.risk.t4.a_copd<-ggsurvplot(survfit.t4.a_copd, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t4.a_copd, 
+      col.names = c("Time since diagnosis", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+## By a_dementia
+```{r}
+survfit.t4.a_dementia<-survfit(Surv(time, status) ~ a_dementia, 
+                 data = r.diagnosis.hospitalised)
+ggsurv.t4.a_dementia<- list(
+  ggsurvplot(survfit.t4.a_dementia, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t4.a_dementia, fun = "cloglog", conf.int =TRUE))
+ggsurv.t4.a_dementia <-arrange_ggsurvplots(ggsurv.t4.a_dementia, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t4.a_dementia.png",ggsurv.t4.a_dementia,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t4.a_dementia.png")
+```
+
+```{r}
+at.risk.t4.a_dementia<-ggsurvplot(survfit.t4.a_dementia, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t4.a_dementia, 
+      col.names = c("Time since diagnosis", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+## By a_heart_disease
+```{r}
+survfit.t4.a_heart_disease<-survfit(Surv(time, status) ~ a_heart_disease, 
+                 data = r.diagnosis.hospitalised)
+ggsurv.t4.a_heart_disease<- list(
+  ggsurvplot(survfit.t4.a_heart_disease, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t4.a_heart_disease, fun = "cloglog", conf.int =TRUE))
+ggsurv.t4.a_heart_disease <-arrange_ggsurvplots(ggsurv.t4.a_heart_disease, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t4.a_heart_disease.png",ggsurv.t4.a_heart_disease,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t4.a_heart_disease.png")
+```
+
+```{r}
+at.risk.t4.a_heart_disease<-ggsurvplot(survfit.t4.a_heart_disease, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t4.a_heart_disease, 
+      col.names = c("Time since diagnosis", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+## By a_hyperlipidemia
+```{r}
+survfit.t4.a_hyperlipidemia<-survfit(Surv(time, status) ~ a_hyperlipidemia, 
+                 data = r.diagnosis.hospitalised)
+ggsurv.t4.a_hyperlipidemia<- list(
+  ggsurvplot(survfit.t4.a_hyperlipidemia, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t4.a_hyperlipidemia, fun = "cloglog", conf.int =TRUE))
+ggsurv.t4.a_hyperlipidemia <-arrange_ggsurvplots(ggsurv.t4.a_hyperlipidemia, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t4.a_hyperlipidemia.png",ggsurv.t4.a_hyperlipidemia,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t4.a_hyperlipidemia.png")
+```
+
+```{r}
+at.risk.t4.a_hyperlipidemia<-ggsurvplot(survfit.t4.a_hyperlipidemia, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t4.a_hyperlipidemia, 
+      col.names = c("Time since diagnosis", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+## By a_hypertension
+```{r}
+survfit.t4.a_hypertension<-survfit(Surv(time, status) ~ a_hypertension, 
+                 data = r.diagnosis.hospitalised)
+ggsurv.t4.a_hypertension<- list(
+  ggsurvplot(survfit.t4.a_hypertension, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t4.a_hypertension, fun = "cloglog", conf.int =TRUE))
+ggsurv.t4.a_hypertension <-arrange_ggsurvplots(ggsurv.t4.a_hypertension, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t4.a_hypertension.png",ggsurv.t4.a_hypertension,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t4.a_hypertension.png")
+```
+
+```{r}
+at.risk.t4.a_hypertension<-ggsurvplot(survfit.t4.a_hypertension, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t4.a_hypertension, 
+      col.names = c("Time since diagnosis", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+## By a_malignant_neoplasm
+```{r}
+survfit.t4.a_malignant_neoplasm<-survfit(Surv(time, status) ~ a_malignant_neoplasm, 
+                 data = r.diagnosis.hospitalised)
+ggsurv.t4.a_malignant_neoplasm<- list(
+  ggsurvplot(survfit.t4.a_malignant_neoplasm, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t4.a_malignant_neoplasm, fun = "cloglog", conf.int =TRUE))
+ggsurv.t4.a_malignant_neoplasm <-arrange_ggsurvplots(ggsurv.t4.a_malignant_neoplasm, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t4.a_malignant_neoplasm.png",ggsurv.t4.a_malignant_neoplasm,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t4.a_malignant_neoplasm.png")
+```
+
+```{r}
+at.risk.t4.a_malignant_neoplasm<-ggsurvplot(survfit.t4.a_malignant_neoplasm, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t4.a_malignant_neoplasm, 
+      col.names = c("Time since diagnosis", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+## By a_obesity.5y
+```{r}
+survfit.t4.a_obesity.5y<-survfit(Surv(time, status) ~ a_obesity.5y, 
+                 data = r.diagnosis.hospitalised)
+ggsurv.t4.a_obesity.5y<- list(
+  ggsurvplot(survfit.t4.a_obesity.5y, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t4.a_obesity.5y, fun = "cloglog", conf.int =TRUE))
+ggsurv.t4.a_obesity.5y <-arrange_ggsurvplots(ggsurv.t4.a_obesity.5y, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t4.a_obesity.5y.png",ggsurv.t4.a_obesity.5y,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t4.a_obesity.5y.png")
+```
+
+```{r}
+at.risk.t4.a_obesity.5y<-ggsurvplot(survfit.t4.a_obesity.5y, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t4.a_obesity.5y, 
+      col.names = c("Time since diagnosis", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+## By a_t2_diabetes
+```{r}
+survfit.t4.a_t2_diabetes<-survfit(Surv(time, status) ~ a_t2_diabetes, 
+                 data = r.diagnosis.hospitalised)
+ggsurv.t4.a_t2_diabetes<- list(
+  ggsurvplot(survfit.t4.a_t2_diabetes, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t4.a_t2_diabetes, fun = "cloglog", conf.int =TRUE))
+ggsurv.t4.a_t2_diabetes <-arrange_ggsurvplots(ggsurv.t4.a_t2_diabetes, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t4.a_t2_diabetes.png",ggsurv.t4.a_t2_diabetes,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t4.a_t2_diabetes.png")
+```
+
+```{r}
+at.risk.t4.a_t2_diabetes<-ggsurvplot(survfit.t4.a_t2_diabetes, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t4.a_t2_diabetes, 
+      col.names = c("Time since diagnosis", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+## Transition 6: From hospitalised with COVID-19 to death 
+## overall
+```{r}
+survfit.t6<-survfit(Surv(time, status) ~ 1, 
+                 data = r.hospitalised.death)
+ggsurvplot.event<-ggsurvplot(survfit.t6, fun = "event", palette="black")
+ggsurvplot.event$plot<-ggsurvplot.event$plot+ coord_cartesian(xlim = c(NA,67))+
+  theme(legend.position = "none")
+
+ggsave( "ggsurv.t6.png",print(ggsurvplot.event),
+        dpi=300,
+        width = 6, height = 5)
+include_graphics("ggsurv.t6.png")
+
+
+
+```
+
+
+```{r}
+survfit.t6<-survfit(Surv(time, status) ~ 1, 
+                 data = r.hospitalised.death)
+ggsurvplot.event<-ggsurvplot(survfit.t6, fun = "event", conf.int =TRUE)
+
+
+at.risk.t6<-ggsurvplot(survfit.t6, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t6, 
+      col.names = c("Time since hospitalisation",  "Number at risk", "Cumulative events", "Cumulative censored")) %>%
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By gender
+```{r}
+survfit.t6.gender<-survfit(Surv(time, status) ~ gender, 
+                 data = r.hospitalised.death)
+ggsurvplot.event<-ggsurvplot(survfit.t6.gender, fun = "event", conf.int =TRUE)
+ggsurvplot.event$plot<-ggsurvplot.event$plot+ coord_cartesian(xlim = c(NA,67))+
+  theme(legend.title = element_blank())
+ggsurvplot.cloglog<-ggsurvplot(survfit.t6.gender, fun = "cloglog", conf.int =TRUE)
+ggsurvplot.cloglog$plot<-ggsurvplot.cloglog$plot+ coord_cartesian(xlim = c(NA,67))+
+  theme(legend.position = "none") 
+  
+
+ggsurv.t6.gender<- list(
+  ggsurvplot.event,
+  ggsurvplot.cloglog)
+ggsurv.t6.gender <-arrange_ggsurvplots(ggsurv.t6.gender, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t6.gender.png",ggsurv.t6.gender,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t6.gender.png")
+
+
+
+```
+
+```{r}
+at.risk.t6.gender<-ggsurvplot(survfit.t6.gender, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t6.gender, 
+      col.names = c("Time since hospitalisation", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By age
+```{r}
+survfit.t6.age_gr<-survfit(Surv(time, status) ~ age_gr, 
+                 data = r.hospitalised.death %>% filter(age_gr!="Under 18")) # count less than 5, so omit
+ggsurv.t6.age_gr<- list(
+  ggsurvplot(survfit.t6.age_gr, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t6.age_gr, fun = "cloglog", conf.int =TRUE))
+ggsurv.t6.age_gr <-arrange_ggsurvplots(ggsurv.t6.age_gr, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t6.age_gr.png",ggsurv.t6.age_gr,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t6.age_gr.png")
+```
+
+```{r}
+at.risk.t6.age_gr<-ggsurvplot(survfit.t6.age_gr, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t6.age_gr, 
+      col.names = c("Time since hospitalisation", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+## By charlson
+```{r}
+survfit.t6.charlson<-survfit(Surv(time, status) ~ charlson, 
+                 data = r.hospitalised.death)
+ggsurv.t6.charlson<- list(
+  ggsurvplot(survfit.t6.charlson, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t6.charlson, fun = "cloglog", conf.int =TRUE))
+ggsurv.t6.charlson <-arrange_ggsurvplots(ggsurv.t6.charlson, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t6.charlson.png",ggsurv.t6.charlson,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t6.charlson.png")
+```
+
+```{r}
+at.risk.t6.charlson<-ggsurvplot(survfit.t6.charlson, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t6.charlson, 
+      col.names = c("Time since hospitalisation", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+
+
+
+## By a_autoimmune_condition
+```{r}
+survfit.t6.a_autoimmune_condition<-survfit(Surv(time, status) ~ a_autoimmune_condition, 
+                 data = r.hospitalised.death)
+ggsurv.t6.a_autoimmune_condition<- list(
+  ggsurvplot(survfit.t6.a_autoimmune_condition, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t6.a_autoimmune_condition, fun = "cloglog", conf.int =TRUE))
+ggsurv.t6.a_autoimmune_condition <-arrange_ggsurvplots(ggsurv.t6.a_autoimmune_condition, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t6.a_autoimmune_condition.png",ggsurv.t6.a_autoimmune_condition,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t6.a_autoimmune_condition.png")
+```
+
+```{r}
+at.risk.t6.a_autoimmune_condition<-ggsurvplot(survfit.t6.a_autoimmune_condition, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t6.a_autoimmune_condition, 
+      col.names = c("Time since hospitalisation", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+
+
+
+## By a_chronic_kidney_disease
+```{r}
+survfit.t6.a_chronic_kidney_disease<-survfit(Surv(time, status) ~ a_chronic_kidney_disease, 
+                 data = r.hospitalised.death)
+ggsurv.t6.a_chronic_kidney_disease<- list(
+  ggsurvplot(survfit.t6.a_chronic_kidney_disease, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t6.a_chronic_kidney_disease, fun = "cloglog", conf.int =TRUE))
+ggsurv.t6.a_chronic_kidney_disease <-arrange_ggsurvplots(ggsurv.t6.a_chronic_kidney_disease, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t6.a_chronic_kidney_disease.png",ggsurv.t6.a_chronic_kidney_disease,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t6.a_chronic_kidney_disease.png")
+```
+
+```{r}
+at.risk.t6.a_chronic_kidney_disease<-ggsurvplot(survfit.t6.a_chronic_kidney_disease, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t6.a_chronic_kidney_disease, 
+      col.names = c("Time since hospitalisation", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+
+
+
+## By a_copd
+```{r}
+survfit.t6.a_copd<-survfit(Surv(time, status) ~ a_copd, 
+                 data = r.hospitalised.death)
+ggsurv.t6.a_copd<- list(
+  ggsurvplot(survfit.t6.a_copd, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t6.a_copd, fun = "cloglog", conf.int =TRUE))
+ggsurv.t6.a_copd <-arrange_ggsurvplots(ggsurv.t6.a_copd, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t6.a_copd.png",ggsurv.t6.a_copd,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t6.a_copd.png")
+```
+
+```{r}
+at.risk.t6.a_copd<-ggsurvplot(survfit.t6.a_copd, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t6.a_copd, 
+      col.names = c("Time since hospitalisation", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+
+
+
+## By a_dementia
+```{r}
+survfit.t6.a_dementia<-survfit(Surv(time, status) ~ a_dementia, 
+                 data = r.hospitalised.death)
+ggsurv.t6.a_dementia<- list(
+  ggsurvplot(survfit.t6.a_dementia, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t6.a_dementia, fun = "cloglog", conf.int =TRUE))
+ggsurv.t6.a_dementia <-arrange_ggsurvplots(ggsurv.t6.a_dementia, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t6.a_dementia.png",ggsurv.t6.a_dementia,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t6.a_dementia.png")
+```
+
+```{r}
+at.risk.t6.a_dementia<-ggsurvplot(survfit.t6.a_dementia, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t6.a_dementia, 
+      col.names = c("Time since hospitalisation", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+
+
+
+## By a_heart_disease
+```{r}
+survfit.t6.a_heart_disease<-survfit(Surv(time, status) ~ a_heart_disease, 
+                 data = r.hospitalised.death)
+ggsurv.t6.a_heart_disease<- list(
+  ggsurvplot(survfit.t6.a_heart_disease, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t6.a_heart_disease, fun = "cloglog", conf.int =TRUE))
+ggsurv.t6.a_heart_disease <-arrange_ggsurvplots(ggsurv.t6.a_heart_disease, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t6.a_heart_disease.png",ggsurv.t6.a_heart_disease,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t6.a_heart_disease.png")
+```
+
+```{r}
+at.risk.t6.a_heart_disease<-ggsurvplot(survfit.t6.a_heart_disease, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t6.a_heart_disease, 
+      col.names = c("Time since hospitalisation", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+
+
+
+## By a_hyperlipidemia
+```{r}
+survfit.t6.a_hyperlipidemia<-survfit(Surv(time, status) ~ a_hyperlipidemia, 
+                 data = r.hospitalised.death)
+ggsurv.t6.a_hyperlipidemia<- list(
+  ggsurvplot(survfit.t6.a_hyperlipidemia, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t6.a_hyperlipidemia, fun = "cloglog", conf.int =TRUE))
+ggsurv.t6.a_hyperlipidemia <-arrange_ggsurvplots(ggsurv.t6.a_hyperlipidemia, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t6.a_hyperlipidemia.png",ggsurv.t6.a_hyperlipidemia,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t6.a_hyperlipidemia.png")
+```
+
+```{r}
+at.risk.t6.a_hyperlipidemia<-ggsurvplot(survfit.t6.a_hyperlipidemia, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t6.a_hyperlipidemia, 
+      col.names = c("Time since hospitalisation", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+
+
+
+## By a_hypertension
+```{r}
+survfit.t6.a_hypertension<-survfit(Surv(time, status) ~ a_hypertension, 
+                 data = r.hospitalised.death)
+ggsurv.t6.a_hypertension<- list(
+  ggsurvplot(survfit.t6.a_hypertension, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t6.a_hypertension, fun = "cloglog", conf.int =TRUE))
+ggsurv.t6.a_hypertension <-arrange_ggsurvplots(ggsurv.t6.a_hypertension, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t6.a_hypertension.png",ggsurv.t6.a_hypertension,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t6.a_hypertension.png")
+```
+
+```{r}
+at.risk.t6.a_hypertension<-ggsurvplot(survfit.t6.a_hypertension, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t6.a_hypertension, 
+      col.names = c("Time since hospitalisation", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+
+
+
+## By a_malignant_neoplasm
+```{r}
+survfit.t6.a_malignant_neoplasm<-survfit(Surv(time, status) ~ a_malignant_neoplasm, 
+                 data = r.hospitalised.death)
+ggsurv.t6.a_malignant_neoplasm<- list(
+  ggsurvplot(survfit.t6.a_malignant_neoplasm, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t6.a_malignant_neoplasm, fun = "cloglog", conf.int =TRUE))
+ggsurv.t6.a_malignant_neoplasm <-arrange_ggsurvplots(ggsurv.t6.a_malignant_neoplasm, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t6.a_malignant_neoplasm.png",ggsurv.t6.a_malignant_neoplasm,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t6.a_malignant_neoplasm.png")
+```
+
+```{r}
+at.risk.t6.a_malignant_neoplasm<-ggsurvplot(survfit.t6.a_malignant_neoplasm, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t6.a_malignant_neoplasm, 
+      col.names = c("Time since hospitalisation", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+
+
+
+## By a_obesity.5y
+```{r}
+survfit.t6.a_obesity.5y<-survfit(Surv(time, status) ~ a_obesity.5y, 
+                 data = r.hospitalised.death)
+ggsurv.t6.a_obesity.5y<- list(
+  ggsurvplot(survfit.t6.a_obesity.5y, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t6.a_obesity.5y, fun = "cloglog", conf.int =TRUE))
+ggsurv.t6.a_obesity.5y <-arrange_ggsurvplots(ggsurv.t6.a_obesity.5y, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t6.a_obesity.5y.png",ggsurv.t6.a_obesity.5y,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t6.a_obesity.5y.png")
+```
+
+```{r}
+at.risk.t6.a_obesity.5y<-ggsurvplot(survfit.t6.a_obesity.5y, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t6.a_obesity.5y, 
+      col.names = c("Time since hospitalisation", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+
+
+
+## By a_t2_diabetes
+```{r}
+survfit.t6.a_t2_diabetes<-survfit(Surv(time, status) ~ a_t2_diabetes, 
+                 data = r.hospitalised.death)
+ggsurv.t6.a_t2_diabetes<- list(
+  ggsurvplot(survfit.t6.a_t2_diabetes, fun = "event", conf.int =TRUE),
+  ggsurvplot(survfit.t6.a_t2_diabetes, fun = "cloglog", conf.int =TRUE))
+ggsurv.t6.a_t2_diabetes <-arrange_ggsurvplots(ggsurv.t6.a_t2_diabetes, print = FALSE, ncol = 1, nrow = 2)
+ggsave( "ggsurv.t6.a_t2_diabetes.png",ggsurv.t6.a_t2_diabetes,
+        dpi=300,
+        width = 9, height = 14)
+include_graphics("ggsurv.t6.a_t2_diabetes.png")
+```
+
+```{r}
+at.risk.t6.a_t2_diabetes<-ggsurvplot(survfit.t6.a_t2_diabetes, fun = "event", 
+                              break.time.by=5)$data.survtable %>% 
+  select(strata, time, n.risk, cum.n.event,cum.n.censor) %>%  
+  mutate(n.risk=nice.num(n.risk),
+         cum.n.event=nice.num(cum.n.event),
+         cum.n.censor=nice.num(cum.n.censor)) %>% 
+  arrange(time) %>% 
+  select(time, strata, n.risk, cum.n.event, cum.n.censor)
+         
+kable(at.risk.t6.a_t2_diabetes, 
+      col.names = c("Time since hospitalisation", "Strata", "Number at risk", "Cumulative events", "Cumulative censored")) %>% 
+  kable_styling(bootstrap_options = c("striped", "bordered"))
+
+```
+
+
+
+
+
+
