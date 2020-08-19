@@ -266,7 +266,7 @@ Renal_disease2<-condition_occurrence %>%
   collect() %>% 
   mutate(weight=2)
 Renal_disease3<-condition_occurrence %>% 
-  filter(condition_concept_id %in% !!Renal_disease.codes$descendant_concept_id[101:50]) %>% 
+  filter(condition_concept_id %in% !!Renal_disease.codes$descendant_concept_id[101:150]) %>% 
   select(person_id) %>% 
   distinct() %>% 
   collect() %>% 
