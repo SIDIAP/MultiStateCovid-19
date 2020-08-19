@@ -1,5 +1,7 @@
 # MultiStateCovid-19
 
+[![DOI](https://zenodo.org/badge/279256918.svg)](https://zenodo.org/badge/latestdoi/279256918)
+
 This study has been performed on data from the *Sistema d’Informació pel Desenvolupament de la Investigació a l’Atenció Primària* (SIDIAP) database, linked to COVID-19 PCR testing, hospitalisation, and mortality data, which was mapped to the Observational Medical Outcomes Partnership (OMOP) Common Data Model (CDM). There are two distinct parts to the data analysis. First, creating cohort definitions for identifying particular comorbidities of interest. Second, bespoke R analysis code to execute the study. 
 
 1. Cohort definitions  
